@@ -211,6 +211,7 @@ class BackendReadiness(StrictContract):
 
     backend: RuntimeBackend
     environment_id: str = Field(min_length=1, max_length=160)
+    generation: int = Field(ge=1)
     enabled: bool
     conformance_evidence: dict[str, str]
     policy_revision: str = Field(min_length=1, max_length=80)
@@ -428,8 +429,9 @@ class AdmissionRequest(StrictContract):
 class AdmissionDecision(StrictContract):
     admitted: bool
     reason: Literal[
-        "admitted", "backend_not_provisioned", "backend_not_conformant",
-        "artifact_not_approved", "artifact_revoked", "artifact_signature_invalid",
+        "admitted", "backend_not_provisioned", "backend_readiness_stale",
+        "backend_not_conformant", "artifact_not_approved", "artifact_revoked",
+        "artifact_signature_invalid",
         "artifact_mismatch", "agent_version_mismatch",
         "resource_limit_exceeded",
     ]
@@ -479,6 +481,7 @@ def decide_admission(
     trusted_conformance_keys: Mapping[str, TrustedAttestationKey],
     backend_evidence: Mapping[str, bytes] | None,
     backend_source_evidence: Mapping[str, bytes] | None,
+    current_readiness_generation: int | None,
     review_approved: bool,
     artifact_revoked: bool,
     backend_readiness: BackendReadiness | None,
@@ -518,6 +521,9 @@ def decide_admission(
     if not verify_backend_readiness(
             readiness, trusted_readiness_keys, trusted_conformance_keys):
         return deny("backend_not_provisioned")
+    if (current_readiness_generation is None
+            or current_readiness_generation != readiness.generation):
+        return deny("backend_readiness_stale")
     if not verify_backend_evidence(
             readiness, backend_evidence, backend_source_evidence):
         return deny("backend_not_conformant")
