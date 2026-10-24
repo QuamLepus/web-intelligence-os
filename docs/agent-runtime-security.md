@@ -141,7 +141,8 @@ binds key ID and signer identity to a PEM public key, validity interval, and
 optional key-revocation instant. The
 admission policy itself requires this signature verification as well as a
 trusted review approval and readiness record, and emits a distinct denial for
-an invalid signature. It requires size-limited artifact bytes matching the
+an invalid signature. Approval and revocation state must be actual booleans;
+malformed state fails closed with `artifact_state_invalid`. It requires size-limited artifact bytes matching the
 signed SHA-256 digest and rejects an explicitly revoked artifact before review
 or signature checks. Artifact attestations must also be no more than 90 days
 old by default (configurable by the admission caller); callers should set a

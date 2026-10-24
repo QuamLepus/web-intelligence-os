@@ -299,6 +299,8 @@ def test_admission_requires_all_pins_review_and_backend_gates():
     assert _decide(attestation=_attestation(), readiness=_ready()).admitted
     assert _decide(approved=False).reason == "artifact_not_approved"
     assert _decide(approved=False, revoked=True).reason == "artifact_revoked"
+    assert _decide(approved="false").reason == "artifact_state_invalid"
+    assert _decide(revoked="false").reason == "artifact_state_invalid"
     assert _decide(attestation=None).reason == "artifact_not_approved"
     assert _decide(attestation=_attestation(signature="bad")).reason == "artifact_signature_invalid"
     assert _decide(trusted_keys={}).reason == "artifact_signature_invalid"
