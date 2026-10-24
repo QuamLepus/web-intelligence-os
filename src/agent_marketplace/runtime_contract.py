@@ -145,7 +145,7 @@ def verify_attestation_signature(
     if attested_at.tzinfo is None or attested_at.utcoffset() is None:
         return False
     attested_at = attested_at.astimezone(UTC)
-    if (maximum_age_seconds < 1
+    if (type(maximum_age_seconds) is not int or maximum_age_seconds < 1
             or current_time < valid_from or current_time >= expires_at
             or attested_at < valid_from or attested_at >= expires_at
             or attested_at > current_time
@@ -178,7 +178,8 @@ def verify_artifact_bytes(
     quarantine scanning, or immutability. Callers must enforce those controls
     around byte acquisition and retention.
     """
-    if not isinstance(artifact_bytes, bytes) or maximum_bytes < 0:
+    if (not isinstance(artifact_bytes, bytes)
+            or type(maximum_bytes) is not int or maximum_bytes < 0):
         return False
     if len(artifact_bytes) > maximum_bytes:
         return False
@@ -302,7 +303,8 @@ def verify_backend_evidence(
     signed digests. Their semantic sufficiency still requires assessor review.
     """
     if (evidence is None or source_evidence is None
-            or maximum_total_bytes < 0 or maximum_age_seconds < 1):
+            or type(maximum_total_bytes) is not int or maximum_total_bytes < 0
+            or type(maximum_age_seconds) is not int or maximum_age_seconds < 1):
         return False
     required = BACKEND_REQUIRED_GATES[readiness.backend]
     expected_gates = set(readiness.conformance_evidence)
@@ -430,7 +432,7 @@ def verify_backend_readiness(
     current_time = current_time.astimezone(UTC)
     issued_at = readiness.issued_at.astimezone(UTC)
     expires_at = readiness.expires_at.astimezone(UTC)
-    if (maximum_validity_seconds < 1
+    if (type(maximum_validity_seconds) is not int or maximum_validity_seconds < 1
             or (expires_at - issued_at).total_seconds() > maximum_validity_seconds
             or issued_at > current_time or current_time >= expires_at
             or readiness.key_id == readiness.assessor_key_id
@@ -604,7 +606,9 @@ def decide_admission(
     if not verify_artifact_bytes(
             attestation, artifact_bytes, maximum_bytes=maximum_artifact_bytes):
         return deny("artifact_mismatch")
-    if (request.input_bytes > maximum_input_bytes
+    if (type(maximum_input_bytes) is not int or maximum_input_bytes < 0
+            or type(maximum_deadline_seconds) is not int or maximum_deadline_seconds < 1
+            or request.input_bytes > maximum_input_bytes
             or request.deadline_seconds > maximum_deadline_seconds):
         return deny("resource_limit_exceeded")
     return AdmissionDecision(admitted=True, reason="admitted", **base)
