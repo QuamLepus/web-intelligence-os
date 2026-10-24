@@ -45,6 +45,12 @@ def test_audit_ledger_limits_require_exact_integer_types():
         RuntimeAuditLedger(redis_client, maximum_future_skew_seconds=True)
 
 
+def test_audit_read_limit_rejects_boolean_coercion():
+    ledger = _ledger()
+    with pytest.raises(ValueError, match="limit must be an integer"):
+        ledger.read("tenant-a", limit=True)
+
+
 def test_audit_ledger_rejects_events_with_far_future_timestamps():
     ledger = _ledger()
     future_event = _event().model_copy(update={

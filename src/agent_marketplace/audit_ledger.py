@@ -159,6 +159,13 @@ class RuntimeAuditLedger:
                     existing_records = self._decode_records(
                         pipe.lrange(records_key, 0, -1))
                     if not self._verify_snapshot(tenant_id, existing_records, head):
+                        # The two watched reads can straddle a concurrent commit.
+                        # Commit a harmless command to force WATCH validation; if
+                        # the snapshot changed, retry instead of mistaking a
+                        # transient mixed view for persistent ledger corruption.
+                        pipe.multi()
+                        pipe.ping()
+                        pipe.execute()
                         raise AuditLedgerError(
                             "cannot append to an invalid audit ledger")
                     event_data = _canonical_event(event)
@@ -240,8 +247,8 @@ class RuntimeAuditLedger:
 
     def read(self, tenant_id: str, *, limit: int | None = None) -> list[AuditRecord]:
         limit = min(100, self.max_events) if limit is None else limit
-        if not 1 <= limit <= self.max_events:
-            raise ValueError("limit must be between 1 and max_events_per_tenant")
+        if type(limit) is not int or not 1 <= limit <= self.max_events:
+            raise ValueError("limit must be an integer between 1 and max_events_per_tenant")
         tenant_id = str(tenant_id)
         try:
             records, head = self._snapshot(tenant_id)

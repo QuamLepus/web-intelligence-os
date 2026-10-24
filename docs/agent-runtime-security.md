@@ -166,7 +166,8 @@ concurrent appends, idempotent event IDs within the retained window (same-ID
 retries return the original record; conflicting reuse is rejected), a five-minute
 default bound on future event timestamps, fail-closed append when the retained
 chain/head is invalid, and reads verify an atomic snapshot before returning
-records. Optimistic append transactions watch both the head and record list
+records. Read limits accept only actual integers, rejecting Python booleans
+rather than treating them as numeric limits. Optimistic append transactions watch both the head and record list
 against concurrent mutation. SHA-256 hash links and a chain/head verifier detect
 changes within the retained window. The stored
 head anchors the first retained sequence and its predecessor digest, so the
