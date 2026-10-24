@@ -401,6 +401,30 @@ def test_artifact_attestation_requires_timezone_aware_creation_time():
         _attestation(created_at=NOW.replace(tzinfo=None))
 
 
+def test_contract_timestamps_reject_implicit_epoch_coercion():
+    with pytest.raises(ValidationError, match="timestamp"):
+        _attestation(created_at=1_800_000_000)
+    with pytest.raises(ValidationError, match="timestamp"):
+        _attestation(created_at="1800000000")
+    with pytest.raises(ValidationError, match="timestamp"):
+        _trusted_key(valid_from=1_800_000_000)
+    with pytest.raises(ValidationError, match="timestamp"):
+        _ready(issued_at=1_800_000_000)
+    with pytest.raises(ValidationError, match="timestamp"):
+        BackendGateEvidence(
+            gate_id="runtime_version_pinned", backend=RuntimeBackend.WASM_WASI,
+            environment_id="pool-test-a", policy_revision="policy-v1",
+            result="passed", tested_at=1_800_000_000, test_run_id="test-1",
+            report_sha256="a" * 64)
+    with pytest.raises(ValidationError, match="timestamp"):
+        RuntimeAuditEvent(
+            event_id="evt-time", occurred_at=1_800_000_000,
+            event_type="admission_denied", tenant_id="tenant-1",
+            agent_id="agent-1", version="1.0.0",
+            backend=RuntimeBackend.WASM_WASI, artifact_sha256=DIGEST,
+            policy_revision="policy-v1", reason_code="denied")
+
+
 def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
     private_key = Ed25519PrivateKey.generate()
     public_pem = private_key.public_key().public_bytes(
