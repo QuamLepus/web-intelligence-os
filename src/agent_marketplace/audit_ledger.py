@@ -149,7 +149,9 @@ class RuntimeAuditLedger:
         with self.r.pipeline() as pipe:
             while True:
                 try:
-                    pipe.watch(head_key)
+                    # Protect both the logical head and retained bytes from
+                    # concurrent appends or out-of-band record mutation.
+                    pipe.watch(head_key, records_key)
                     head = self._text_mapping(pipe.hgetall(head_key))
                     # Event IDs are idempotency keys within the retained window.
                     # The window is bounded by max_events, so this scan is bounded.

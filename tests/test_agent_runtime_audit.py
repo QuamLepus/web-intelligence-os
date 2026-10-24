@@ -110,6 +110,45 @@ def test_audit_ledger_detects_record_tampering_and_head_mismatch():
     assert not ledger.verify("tenant-a")
 
 
+def test_append_watches_retained_records_against_concurrent_mutation(monkeypatch):
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client)
+    ledger.append("tenant-a", _event())
+    records_key, _ = ledger._keys("tenant-a")
+    original_record = json.loads(redis_client.lindex(records_key, 0))
+    original_record["event"]["reason_code"] = "racing-tamper"
+    base_pipeline = redis_client.pipeline
+    mutate_once = {"pending": True}
+
+    class MutatingPipeline:
+        def __init__(self, pipeline):
+            self.pipeline = pipeline
+
+        def __enter__(self):
+            self.pipeline.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.pipeline.__exit__(*args)
+
+        def __getattr__(self, name):
+            return getattr(self.pipeline, name)
+
+        def execute(self, *args, **kwargs):
+            if mutate_once["pending"]:
+                mutate_once["pending"] = False
+                redis_client.lset(records_key, 0, json.dumps(original_record))
+            return self.pipeline.execute(*args, **kwargs)
+
+    monkeypatch.setattr(
+        redis_client, "pipeline",
+        lambda *args, **kwargs: MutatingPipeline(base_pipeline(*args, **kwargs)))
+    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+        ledger.append("tenant-a", _event(suffix="racing-append"))
+    assert mutate_once["pending"] is False
+    assert redis_client.llen(records_key) == 1
+
+
 def test_retained_window_anchor_detects_missing_prefix_record():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client, max_events=3)
