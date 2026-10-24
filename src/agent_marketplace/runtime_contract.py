@@ -489,7 +489,7 @@ class AdmissionRequest(StrictContract):
 
 
 class AdmissionDecision(StrictContract):
-    admitted: bool
+    admitted: bool = Field(strict=True)
     reason: Literal[
         "admitted", "backend_not_provisioned", "backend_readiness_stale",
         "backend_not_conformant", "artifact_not_approved", "artifact_revoked",

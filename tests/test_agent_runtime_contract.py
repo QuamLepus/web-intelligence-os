@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from src.agent_marketplace.runtime_contract import (
     BACKEND_REQUIRED_GATES,
+    AdmissionDecision,
     AdmissionRequest,
     ArtifactAttestation,
     BackendGateEvidence,
@@ -469,6 +470,19 @@ def test_policy_limits_reject_boolean_integer_coercion():
         readiness, evidence, source, now=NOW, maximum_age_seconds=True)
     assert _decide(maximum_input_bytes=True).reason == "resource_limit_exceeded"
     assert _decide(maximum_deadline_seconds=True).reason == "resource_limit_exceeded"
+
+
+def test_admission_decision_rejects_boolean_coercion():
+    decision = {
+        "admitted": "false", "reason": "artifact_not_approved",
+        "backend": RuntimeBackend.WASM_WASI, "artifact_sha256": DIGEST,
+        "policy_revision": "policy-v1",
+    }
+    with pytest.raises(ValidationError):
+        AdmissionDecision(**decision)
+    decision["admitted"] = 0
+    with pytest.raises(ValidationError):
+        AdmissionDecision(**decision)
 
 
 def test_contracts_reject_unknown_fields_and_noncanonical_digest():
