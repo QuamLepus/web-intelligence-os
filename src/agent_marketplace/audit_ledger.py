@@ -241,8 +241,14 @@ class RuntimeAuditLedger:
         limit = min(100, self.max_events) if limit is None else limit
         if not 1 <= limit <= self.max_events:
             raise ValueError("limit must be between 1 and max_events_per_tenant")
-        records_key, _ = self._keys(str(tenant_id))
-        return self._decode_records(self.r.lrange(records_key, -limit, -1))
+        tenant_id = str(tenant_id)
+        try:
+            records, head = self._snapshot(tenant_id)
+        except AuditLedgerError as exc:
+            raise AuditLedgerError("cannot read an invalid audit ledger") from exc
+        if not self._verify_snapshot(tenant_id, records, head):
+            raise AuditLedgerError("cannot read an invalid audit ledger")
+        return records[-limit:]
 
     def _snapshot(self, tenant_id: str) -> tuple[list[AuditRecord], dict[str, str]]:
         records_key, head_key = self._keys(str(tenant_id))
