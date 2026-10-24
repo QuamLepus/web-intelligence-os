@@ -6,6 +6,7 @@ from itertools import pairwise
 
 import fakeredis
 import pytest
+from pydantic import ValidationError
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -34,6 +35,14 @@ def _ledger(redis_client=None, max_events=100):
     return RuntimeAuditLedger(
         redis_client or fakeredis.FakeStrictRedis(decode_responses=True),
         max_events_per_tenant=max_events)
+
+
+def test_audit_ledger_limits_require_exact_integer_types():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    with pytest.raises(ValueError, match="positive integer"):
+        RuntimeAuditLedger(redis_client, max_events_per_tenant=True)
+    with pytest.raises(ValueError, match="nonnegative integer"):
+        RuntimeAuditLedger(redis_client, maximum_future_skew_seconds=True)
 
 
 def test_audit_ledger_rejects_events_with_far_future_timestamps():
@@ -213,6 +222,12 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
             **checkpoint.model_dump(),
             "first_sequence": checkpoint.sequence + 1,
         })
+    for counter in ("sequence", "first_sequence"):
+        with pytest.raises(ValidationError):
+            AuditCheckpoint(**{
+                **checkpoint.model_dump(),
+                counter: True,
+            })
     assert not RuntimeAuditLedger.verify_checkpoint(
         checkpoint.model_copy(update={"first_sequence": checkpoint.sequence + 1}),
         tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key}, now=now)
