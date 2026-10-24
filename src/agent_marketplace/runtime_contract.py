@@ -400,13 +400,37 @@ def verify_backend_readiness(
             or readiness.key_id == readiness.assessor_key_id
             or readiness.signer_id == readiness.assessor_id):
         return False
+    operator_key = trusted_keys.get(readiness.key_id)
+    assessor_key = trusted_assessor_keys.get(readiness.assessor_key_id)
+    if (operator_key is None or assessor_key is None
+            or operator_key.key_id != readiness.key_id
+            or operator_key.signer_id != readiness.signer_id
+            or assessor_key.key_id != readiness.assessor_key_id
+            or assessor_key.signer_id != readiness.assessor_id):
+        return False
+    try:
+        operator_public = serialization.load_pem_public_key(
+            operator_key.public_key_pem.encode("ascii"))
+        assessor_public = serialization.load_pem_public_key(
+            assessor_key.public_key_pem.encode("ascii"))
+        if (not isinstance(operator_public, Ed25519PublicKey)
+                or not isinstance(assessor_public, Ed25519PublicKey)
+                or operator_public.public_bytes(
+                    serialization.Encoding.DER,
+                    serialization.PublicFormat.SubjectPublicKeyInfo)
+                == assessor_public.public_bytes(
+                    serialization.Encoding.DER,
+                    serialization.PublicFormat.SubjectPublicKeyInfo)):
+            return False
+    except (ValueError, TypeError, UnicodeEncodeError):
+        return False
     operator_ok = _verify_readiness_signer(
-        trusted_keys.get(readiness.key_id), key_id=readiness.key_id,
+        operator_key, key_id=readiness.key_id,
         signer_id=readiness.signer_id, signature_text=readiness.signature,
         payload=backend_readiness_signing_payload(readiness),
         issued_at=issued_at, expires_at=expires_at, current_time=current_time)
     assessor_ok = _verify_readiness_signer(
-        trusted_assessor_keys.get(readiness.assessor_key_id),
+        assessor_key,
         key_id=readiness.assessor_key_id, signer_id=readiness.assessor_id,
         signature_text=readiness.assessor_signature,
         payload=backend_conformance_signing_payload(readiness),
