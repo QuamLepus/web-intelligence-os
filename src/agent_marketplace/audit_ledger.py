@@ -126,9 +126,19 @@ class RuntimeAuditLedger:
                 try:
                     pipe.watch(head_key)
                     head = self._text_mapping(pipe.hgetall(head_key))
+                    # Event IDs are idempotency keys within the retained window.
+                    # The window is bounded by max_events, so this scan is bounded.
+                    existing_records = self._decode_records(
+                        pipe.lrange(records_key, 0, -1))
+                    event_data = _canonical_event(event)
+                    for existing in existing_records:
+                        if existing.event.event_id == event.event_id:
+                            if _canonical_event(existing.event) != event_data:
+                                raise AuditLedgerError(
+                                    "event ID already exists with different contents")
+                            return existing
                     sequence = int(head.get("sequence", 0)) + 1
                     previous_hash = head.get("event_hash", self.ZERO_HASH)
-                    event_data = _canonical_event(event)
                     record = AuditRecord(
                         sequence=sequence,
                         previous_hash=previous_hash,

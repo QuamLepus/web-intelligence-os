@@ -48,6 +48,25 @@ def test_audit_ledger_is_tenant_partitioned_and_rejects_mismatched_tenant():
         ledger.append("tenant-a", _event(tenant_id="tenant-b", suffix="cross"))
 
 
+def test_duplicate_event_ids_are_idempotent_within_retained_window():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client, max_events=3)
+    event = _event()
+
+    first = ledger.append("tenant-a", event)
+    retried = ledger.append("tenant-a", event)
+    records_key, _ = ledger._keys("tenant-a")
+    assert retried == first
+    assert redis_client.llen(records_key) == 1
+    assert ledger.verify("tenant-a")
+
+    conflicting = event.model_copy(update={"reason_code": "different-denial"})
+    with pytest.raises(AuditLedgerError, match="different contents"):
+        ledger.append("tenant-a", conflicting)
+    assert redis_client.llen(records_key) == 1
+    assert ledger.verify("tenant-a")
+
+
 def test_audit_ledger_keeps_bounded_window_and_verifies_chain_head():
     ledger = _ledger(max_events=2)
     for index in range(4):
