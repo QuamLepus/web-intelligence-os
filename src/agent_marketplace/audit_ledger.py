@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-from pydantic import Field
+from pydantic import Field, model_validator
 from redis.exceptions import WatchError
 
 from src.agent_marketplace.runtime_contract import (
@@ -77,6 +77,19 @@ class AuditCheckpoint(StrictContract):
     key_id: str = Field(min_length=1, max_length=160)
     signature_algorithm: Literal["ed25519"] = "ed25519"
     signature: str = Field(min_length=1, max_length=256)
+
+    @model_validator(mode="after")
+    def _retained_window_is_consistent(self) -> "AuditCheckpoint":
+        zero_hash = "0" * 64
+        if self.sequence == 0:
+            if (self.first_sequence != 1 or self.event_hash != zero_hash
+                    or self.first_previous_hash != zero_hash):
+                raise ValueError("empty checkpoint must use the zero-chain anchor")
+        elif (self.first_sequence > self.sequence
+              or (self.first_sequence == 1
+                  and self.first_previous_hash != zero_hash)):
+            raise ValueError("checkpoint retention window is inconsistent")
+        return self
 
 
 def _checkpoint_payload(checkpoint: AuditCheckpoint) -> bytes:
@@ -363,7 +376,18 @@ class RuntimeAuditLedger:
         trusted_keys: dict[str, TrustedAttestationKey],
         now: datetime | None = None,
     ) -> bool:
-        """Verify checkpoint signature, tenant binding, signer, and key status."""
+        """Verify checkpoint structure, signature, tenant, signer, and key status."""
+        zero_hash = RuntimeAuditLedger.ZERO_HASH
+        if (checkpoint.sequence == 0
+                and (checkpoint.first_sequence != 1
+                     or checkpoint.event_hash != zero_hash
+                     or checkpoint.first_previous_hash != zero_hash)):
+            return False
+        if (checkpoint.sequence > 0
+                and (checkpoint.first_sequence > checkpoint.sequence
+                     or (checkpoint.first_sequence == 1
+                         and checkpoint.first_previous_hash != zero_hash))):
+            return False
         expected_tenant = hashlib.sha256(str(tenant_id).encode("utf-8")).hexdigest()
         if (checkpoint.signature_algorithm != "ed25519"
                 or checkpoint.tenant_sha256 != expected_tenant):

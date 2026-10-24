@@ -10,6 +10,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from src.agent_marketplace.audit_ledger import (
+    AuditCheckpoint,
     AuditLedgerError,
     RuntimeAuditLedger,
 )
@@ -164,6 +165,14 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         private_key=private_key, created_at=now)
     trusted_keys = {"audit-key-1": trusted_key}
     assert checkpoint.sequence == 3
+    with pytest.raises(ValueError, match="retention window is inconsistent"):
+        AuditCheckpoint(**{
+            **checkpoint.model_dump(),
+            "first_sequence": checkpoint.sequence + 1,
+        })
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint.model_copy(update={"first_sequence": checkpoint.sequence + 1}),
+        tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key}, now=now)
     assert RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
     assert ledger.matches_checkpoint(
