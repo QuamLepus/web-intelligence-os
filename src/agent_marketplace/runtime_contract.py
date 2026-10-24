@@ -96,6 +96,13 @@ class ArtifactAttestation(StrictContract):
     signature: str = Field(min_length=1, max_length=256)
     created_at: datetime
 
+    @field_validator("created_at")
+    @classmethod
+    def _created_at_timezone_required(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("attestation timestamp must include a timezone")
+        return value
+
 
 def attestation_signing_payload(attestation: ArtifactAttestation) -> bytes:
     """Return the stable UTF-8 payload that artifact reviewers must sign."""
