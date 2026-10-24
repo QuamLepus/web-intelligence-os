@@ -145,7 +145,8 @@ admission policy itself requires this signature verification as well as a
 trusted review approval and readiness record, and emits a distinct denial for
 an invalid signature. Approval and revocation state must be actual booleans;
 malformed state fails closed with `artifact_state_invalid`. Admission-decision
-records also require an actual boolean `admitted` value. Configurable integer policy limits reject booleans rather than accepting Python's boolean-as-integer behavior. It requires size-limited artifact bytes matching the
+records also require an actual boolean `admitted` value, consistent with the
+`admitted` reason code. Configurable integer policy limits reject booleans rather than accepting Python's boolean-as-integer behavior. It requires size-limited artifact bytes matching the
 signed SHA-256 digest and rejects an explicitly revoked artifact before review
 or signature checks. Artifact attestations must also be no more than 90 days
 old by default (configurable by the admission caller); callers should set a

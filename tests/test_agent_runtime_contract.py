@@ -477,6 +477,19 @@ def test_policy_limits_reject_boolean_integer_coercion():
     assert _decide(maximum_deadline_seconds=True).reason == "resource_limit_exceeded"
 
 
+def test_admission_decision_requires_state_and_reason_consistency():
+    decision = {
+        "admitted": True, "reason": "admitted",
+        "backend": RuntimeBackend.WASM_WASI, "artifact_sha256": DIGEST,
+        "policy_revision": "policy-v1",
+    }
+    assert AdmissionDecision(**decision).admitted
+    with pytest.raises(ValidationError, match="consistent"):
+        AdmissionDecision(**{**decision, "reason": "artifact_revoked"})
+    with pytest.raises(ValidationError, match="consistent"):
+        AdmissionDecision(**{**decision, "admitted": False})
+
+
 def test_admission_decision_rejects_boolean_coercion():
     decision = {
         "admitted": "false", "reason": "artifact_not_approved",
