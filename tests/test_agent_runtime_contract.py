@@ -129,6 +129,7 @@ def _ready(**changes):
     data = {
         "backend": backend,
         "environment_id": "pool-test-a",
+        "generation": 1,
         "enabled": True,
         "conformance_evidence": {
             gate: hashlib.sha256(raw).hexdigest()
@@ -165,6 +166,7 @@ def _decide(request=None, *, attestation=_DEFAULT, approved=True,
             conformance_keys=_ASSESSOR_KEYS,
             backend_evidence=_DEFAULT,
             backend_source_evidence=_DEFAULT,
+            current_readiness_generation=1,
             artifact_bytes=ARTIFACT_BYTES, revoked=False):
     if attestation is _DEFAULT:
         attestation = _attestation()
@@ -183,6 +185,7 @@ def _decide(request=None, *, attestation=_DEFAULT, approved=True,
         trusted_conformance_keys=conformance_keys,
         backend_evidence=backend_evidence,
         backend_source_evidence=backend_source_evidence,
+        current_readiness_generation=current_readiness_generation,
         review_approved=approved, artifact_revoked=revoked,
         backend_readiness=readiness)
 
@@ -291,6 +294,8 @@ def test_admission_requires_all_pins_review_and_backend_gates():
         update={"assessor_signature": "invalid"})).reason == "backend_not_provisioned"
     assert _decide(readiness=_ready().model_copy(
         update={"enabled": False})).reason == "backend_not_provisioned"
+    assert _decide(current_readiness_generation=None).reason == "backend_readiness_stale"
+    assert _decide(current_readiness_generation=2).reason == "backend_readiness_stale"
     assert _decide(request=_request(backend_environment_id="pool-prod-b")).reason \
         == "backend_not_provisioned"
     assert _decide(readiness=_ready(
@@ -319,6 +324,7 @@ def test_admission_enforces_resource_bounds():
         trusted_conformance_keys=_ASSESSOR_KEYS,
         backend_evidence=_evidence_for(RuntimeBackend.WASM_WASI),
         backend_source_evidence=_source_evidence_for(RuntimeBackend.WASM_WASI),
+        current_readiness_generation=1,
         review_approved=True,
         artifact_revoked=False, backend_readiness=_ready(), maximum_input_bytes=256,
         maximum_deadline_seconds=20)
