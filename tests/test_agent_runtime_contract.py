@@ -213,6 +213,28 @@ def test_backend_required_gate_contracts_cover_isolation_controls():
     })
 
 
+def test_artifact_review_key_must_differ_from_readiness_operator_and_assessor():
+    for shared_private_key, shared_signer in (
+            (_READINESS_PRIVATE_KEY, "runtime-operator"),
+            (_ASSESSOR_PRIVATE_KEY, "independent-assessor")):
+        public_pem = shared_private_key.public_key().public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo)
+        artifact_key = TrustedAttestationKey(
+            key_id="review-key-1", signer_id="review-service",
+            public_key_pem=public_pem.decode("ascii"),
+            valid_from=NOW - timedelta(days=1),
+            expires_at=NOW + timedelta(days=1))
+        unsigned = _attestation(signature="pending")
+        signature = base64.urlsafe_b64encode(
+            shared_private_key.sign(attestation_signing_payload(unsigned))
+        ).decode().rstrip("=")
+        signed = unsigned.model_copy(update={"signature": signature})
+        result = _decide(attestation=signed, trusted_keys={"review-key-1": artifact_key})
+        assert not result.admitted
+        assert result.reason == "artifact_signature_invalid"
+
+
 def test_backend_readiness_requires_cryptographically_distinct_signers():
     readiness = _ready(assessor_private_key=_READINESS_PRIVATE_KEY)
     same_key_as_assessor = TrustedAttestationKey(

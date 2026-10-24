@@ -126,7 +126,9 @@ operator signs the enablement assertion. The assertion validity window is capped
 at 24 hours, in addition to each signer's key lifecycle. Admission verifies them
 using separate assessor, readiness-operator, and artifact-review trust sets;
 assessor and readiness signer identities and key IDs must differ, and their
-Ed25519 public keys must be cryptographically distinct. Unsigned, expired,
+Ed25519 public keys must be cryptographically distinct. The artifact-review
+signing key must also be cryptographically distinct from both readiness roles;
+separate trust-set labels alone do not establish key separation. Unsigned, expired,
 future-dated, mismatched, or revoked-key assertions fail closed. It rejects resource-limit overruns and never selects a fallback. Contract tests
 cover mismatches, unavailable backends, bounds, and rejection of unknown
 fields.
