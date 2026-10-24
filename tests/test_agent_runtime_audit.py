@@ -101,6 +101,8 @@ def test_audit_ledger_detects_record_tampering_and_head_mismatch():
     original["event"]["reason_code"] = "changed"
     redis_client.lset(records_key, 0, json.dumps(original))
     assert not ledger.verify("tenant-a")
+    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+        ledger.append("tenant-a", _event(suffix="after-tamper"))
 
     redis_client.lset(records_key, 0, "{}")
     assert not ledger.verify("tenant-a")

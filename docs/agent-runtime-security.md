@@ -157,8 +157,8 @@ review-state source. `src/agent_marketplace/audit_ledger.py` adds a bounded,
 tenant-partitioned Redis store for metadata-only audit events, with optimistic
 concurrent appends, idempotent event IDs within the retained window (same-ID
 retries return the original record; conflicting reuse is rejected), a five-minute
-default bound on future event timestamps, and SHA-256 hash links plus a
-chain/head verifier. The stored
+default bound on future event timestamps, fail-closed append when the retained
+chain/head is invalid, and SHA-256 hash links plus a chain/head verifier. The stored
 head anchors the first retained sequence and its predecessor digest, so the
 verifier detects accidental retained-prefix loss as well as changes inside the
 window. Legacy ledgers without this anchor are accepted using their current
