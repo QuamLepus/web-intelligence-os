@@ -121,6 +121,8 @@ def _evidence_for(backend, *, environment_id="pool-test-a",
 
 
 def _ready(**changes):
+    assessor_private_key = changes.pop(
+        "assessor_private_key", _ASSESSOR_PRIVATE_KEY)
     backend = changes.get("backend", RuntimeBackend.WASM_WASI)
     environment_id = changes.get("environment_id", "pool-test-a")
     policy_revision = changes.get("policy_revision", "policy-v1")
@@ -148,7 +150,7 @@ def _ready(**changes):
     data.update(changes)
     readiness = BackendReadiness(**data)
     assessor_signature = base64.urlsafe_b64encode(
-        _ASSESSOR_PRIVATE_KEY.sign(backend_conformance_signing_payload(readiness))
+        assessor_private_key.sign(backend_conformance_signing_payload(readiness))
     ).decode().rstrip("=")
     readiness = readiness.model_copy(update={"assessor_signature": assessor_signature})
     operator_signature = base64.urlsafe_b64encode(
@@ -209,6 +211,18 @@ def test_backend_required_gate_contracts_cover_isolation_controls():
         "resource_quotas_enforced", "vmm_api_vsock_restricted",
         "cancellation_verified", "cross_run_cleanup_verified",
     })
+
+
+def test_backend_readiness_requires_cryptographically_distinct_signers():
+    readiness = _ready(assessor_private_key=_READINESS_PRIVATE_KEY)
+    same_key_as_assessor = TrustedAttestationKey(
+        key_id="assessor-key-1", signer_id="independent-assessor",
+        public_key_pem=_READINESS_PUBLIC_KEY_PEM.decode("ascii"),
+        valid_from=NOW - timedelta(days=1),
+        expires_at=NOW + timedelta(days=1))
+    assert not verify_backend_readiness(
+        readiness, _READINESS_KEYS,
+        {"assessor-key-1": same_key_as_assessor}, now=NOW)
 
 
 def test_backend_readiness_evidence_is_backend_specific_and_signed():
