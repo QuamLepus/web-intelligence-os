@@ -169,7 +169,8 @@ def _decide(request=None, *, attestation=_DEFAULT, approved=True,
             backend_evidence=_DEFAULT,
             backend_source_evidence=_DEFAULT,
             current_readiness_generation=1,
-            artifact_bytes=ARTIFACT_BYTES, revoked=False):
+            artifact_bytes=ARTIFACT_BYTES, revoked=False,
+            maximum_input_bytes=1_048_576, maximum_deadline_seconds=3600):
     if attestation is _DEFAULT:
         attestation = _attestation()
     if readiness is _DEFAULT:
@@ -189,7 +190,8 @@ def _decide(request=None, *, attestation=_DEFAULT, approved=True,
         backend_source_evidence=backend_source_evidence,
         current_readiness_generation=current_readiness_generation,
         review_approved=approved, artifact_revoked=revoked,
-        backend_readiness=readiness)
+        backend_readiness=readiness, maximum_input_bytes=maximum_input_bytes,
+        maximum_deadline_seconds=maximum_deadline_seconds)
 
 
 def test_backend_required_gate_contracts_cover_isolation_controls():
@@ -447,6 +449,26 @@ def test_artifact_bytes_are_bounded_and_match_signed_digest():
     assert not verify_artifact_bytes(attestation, artifact + b"tampered")
     assert not verify_artifact_bytes(attestation, artifact, maximum_bytes=4)
     assert not verify_artifact_bytes(attestation, bytearray(artifact))
+
+
+def test_policy_limits_reject_boolean_integer_coercion():
+    attestation = _attestation()
+    readiness = _ready()
+    evidence = _evidence_for(readiness.backend)
+    source = _source_evidence_for(readiness.backend)
+
+    assert not verify_artifact_bytes(attestation, ARTIFACT_BYTES, maximum_bytes=True)
+    assert not verify_attestation_signature(
+        attestation, _TRUSTED_KEYS, now=NOW, maximum_age_seconds=True)
+    assert not verify_backend_readiness(
+        readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW,
+        maximum_validity_seconds=True)
+    assert not verify_backend_evidence(
+        readiness, evidence, source, now=NOW, maximum_total_bytes=True)
+    assert not verify_backend_evidence(
+        readiness, evidence, source, now=NOW, maximum_age_seconds=True)
+    assert _decide(maximum_input_bytes=True).reason == "resource_limit_exceeded"
+    assert _decide(maximum_deadline_seconds=True).reason == "resource_limit_exceeded"
 
 
 def test_contracts_reject_unknown_fields_and_noncanonical_digest():
