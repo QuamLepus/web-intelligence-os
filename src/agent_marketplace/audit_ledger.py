@@ -68,9 +68,9 @@ class AuditCheckpoint(StrictContract):
     """Signed checkpoint that can be exported to an independently protected store."""
 
     tenant_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    sequence: int = Field(ge=0)
+    sequence: int = Field(ge=0, strict=True)
     event_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
-    first_sequence: int = Field(ge=1)
+    first_sequence: int = Field(ge=1, strict=True)
     first_previous_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     created_at: datetime
     signer_id: str = Field(min_length=1, max_length=160)
@@ -115,10 +115,11 @@ class RuntimeAuditLedger:
         max_events_per_tenant: int = 5000,
         maximum_future_skew_seconds: int = 300,
     ) -> None:
-        if max_events_per_tenant < 1:
-            raise ValueError("max_events_per_tenant must be positive")
-        if maximum_future_skew_seconds < 0:
-            raise ValueError("maximum_future_skew_seconds must not be negative")
+        if type(max_events_per_tenant) is not int or max_events_per_tenant < 1:
+            raise ValueError("max_events_per_tenant must be a positive integer")
+        if (type(maximum_future_skew_seconds) is not int
+                or maximum_future_skew_seconds < 0):
+            raise ValueError("maximum_future_skew_seconds must be a nonnegative integer")
         self.r = redis_client
         self.max_events = max_events_per_tenant
         self.maximum_future_skew = timedelta(seconds=maximum_future_skew_seconds)
