@@ -155,7 +155,9 @@ window or in the future. The caller still owns secure key distribution, rotation
 revocation state. This policy is not wired into an API, scheduler, artifact store,
 review-state source. `src/agent_marketplace/audit_ledger.py` adds a bounded,
 tenant-partitioned Redis store for metadata-only audit events, with optimistic
-concurrent appends and SHA-256 hash links plus a chain/head verifier. The stored
+concurrent appends, idempotent event IDs within the retained window (same-ID
+retries return the original record; conflicting reuse is rejected), and SHA-256
+hash links plus a chain/head verifier. The stored
 head anchors the first retained sequence and its predecessor digest, so the
 verifier detects accidental retained-prefix loss as well as changes inside the
 window. Legacy ledgers without this anchor are accepted using their current
