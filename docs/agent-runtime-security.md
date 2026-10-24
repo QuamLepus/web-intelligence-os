@@ -111,7 +111,9 @@ readiness is an Ed25519-signed, time-bounded operator assertion bound to the
 backend, exact environment/pool ID, monotonic readiness generation, policy
 revision, enabled state, per-gate evidence digests, and trusted key lifecycle.
 Admission requires both the requested pool ID and current operator-supplied
-generation to match, preventing readiness evidence from being replayed across
+generation to match, and uses strict integer/boolean types so Python booleans
+cannot masquerade as generation or resource counts. This prevents readiness
+evidence from being replayed across
 staging/production, separate backend pools, or superseded readiness states. Each backend has a distinct
 required gate set; admission also requires bounded canonical JSON reports and
 the underlying source-evidence bytes. It recomputes the signed report digest and
