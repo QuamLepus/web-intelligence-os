@@ -139,7 +139,11 @@ admission policy itself requires this signature verification as well as a
 trusted review approval and readiness record, and emits a distinct denial for
 an invalid signature. It requires size-limited artifact bytes matching the
 signed SHA-256 digest and rejects an explicitly revoked artifact before review
-or signature checks. Revocation state still must come from a trusted control
+or signature checks. Artifact attestations must also be no more than 90 days
+old by default (configurable by the admission caller); callers should set a
+shorter bound where their review and revocation process supports it. This
+limits replay of stale review claims but does not replace live revocation or
+review-state checks. Revocation state still must come from a trusted control
 plane source. This does not retrieve or store artifacts,
 scan/quarantine them, or establish that review is current. Trusted-key records
 define signer identity, a validity interval, and an optional revocation
