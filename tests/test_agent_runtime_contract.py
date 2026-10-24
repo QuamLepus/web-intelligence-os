@@ -396,6 +396,11 @@ def test_admission_enforces_resource_bounds():
         _request(deadline_seconds=3601)
 
 
+def test_artifact_attestation_requires_timezone_aware_creation_time():
+    with pytest.raises(ValidationError, match="timezone"):
+        _attestation(created_at=NOW.replace(tzinfo=None))
+
+
 def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
     private_key = Ed25519PrivateKey.generate()
     public_pem = private_key.public_key().public_bytes(
