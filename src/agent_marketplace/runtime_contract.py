@@ -215,8 +215,8 @@ class BackendReadiness(StrictContract):
 
     backend: RuntimeBackend
     environment_id: str = Field(min_length=1, max_length=160)
-    generation: int = Field(ge=1)
-    enabled: bool
+    generation: int = Field(ge=1, strict=True)
+    enabled: bool = Field(strict=True)
     conformance_evidence: dict[str, str]
     policy_revision: str = Field(min_length=1, max_length=80)
     issued_at: datetime
@@ -482,8 +482,8 @@ class AdmissionRequest(StrictContract):
     backend: RuntimeBackend
     backend_environment_id: str = Field(min_length=1, max_length=160)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    input_bytes: int = Field(ge=0, le=1_048_576)
-    deadline_seconds: int = Field(ge=1, le=3600)
+    input_bytes: int = Field(ge=0, le=1_048_576, strict=True)
+    deadline_seconds: int = Field(ge=1, le=3600, strict=True)
 
 
 class AdmissionDecision(StrictContract):
@@ -588,7 +588,7 @@ def decide_admission(
             attestation, trusted_keys, readiness,
             trusted_readiness_keys, trusted_conformance_keys):
         return deny("artifact_signature_invalid")
-    if (current_readiness_generation is None
+    if (type(current_readiness_generation) is not int
             or current_readiness_generation != readiness.generation):
         return deny("backend_readiness_stale")
     if not verify_backend_evidence(

@@ -349,6 +349,8 @@ def test_admission_requires_all_pins_review_and_backend_gates():
         update={"enabled": False})).reason == "backend_not_provisioned"
     assert _decide(current_readiness_generation=None).reason == "backend_readiness_stale"
     assert _decide(current_readiness_generation=2).reason == "backend_readiness_stale"
+    # bool is an int subclass in Python; it must not satisfy generation binding.
+    assert _decide(current_readiness_generation=True).reason == "backend_readiness_stale"
     assert _decide(request=_request(backend_environment_id="pool-prod-b")).reason \
         == "backend_not_provisioned"
     assert _decide(readiness=_ready(
@@ -446,6 +448,14 @@ def test_artifact_bytes_are_bounded_and_match_signed_digest():
 
 
 def test_contracts_reject_unknown_fields_and_noncanonical_digest():
+    with pytest.raises(ValidationError):
+        _request(input_bytes=True)
+    with pytest.raises(ValidationError):
+        _request(deadline_seconds=False)
+    with pytest.raises(ValidationError):
+        _ready(generation=True)
+    with pytest.raises(ValidationError):
+        _ready(enabled=1)
     with pytest.raises(ValidationError):
         _request(unreviewed_payload="not allowed")
     with pytest.raises(ValidationError):
