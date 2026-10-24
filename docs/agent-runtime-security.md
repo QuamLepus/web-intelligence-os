@@ -167,8 +167,8 @@ sign the verified head with an Ed25519 operator key; the returned tenant-bound
 checkpoint can be exported to a separately protected immutable store, and
 `verify_checkpoint` validates its signer, key validity/revocation, tenant, and
 signature; `matches_checkpoint` requires trusted-key records and verifies the
-checkpoint signature, tenant binding, signer/key lifecycle, and current Redis
-head before reporting a match. The ledger does not export or persist checkpoints itself. It is not
+checkpoint's retained-window anchor consistency, signature, tenant binding,
+signer/key lifecycle, and current Redis head before reporting a match. The ledger does not export or persist checkpoints itself. It is not
 wired into runtime paths; Redis operators can rewrite both records and heads,
 so without an externally retained checkpoint it is not immutable, tamper-proof,
 or externally anchored. Retention keeps the latest configured window and the
