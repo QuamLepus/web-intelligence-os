@@ -491,7 +491,7 @@ class AdmissionDecision(StrictContract):
     reason: Literal[
         "admitted", "backend_not_provisioned", "backend_readiness_stale",
         "backend_not_conformant", "artifact_not_approved", "artifact_revoked",
-        "artifact_signature_invalid",
+        "artifact_state_invalid", "artifact_signature_invalid",
         "artifact_mismatch", "agent_version_mismatch",
         "resource_limit_exceeded",
     ]
@@ -573,6 +573,8 @@ def decide_admission(
             or readiness.environment_id != request.backend_environment_id
             or not readiness.enabled):
         return deny("backend_not_provisioned")
+    if type(artifact_revoked) is not bool or type(review_approved) is not bool:
+        return deny("artifact_state_invalid")
     if artifact_revoked:
         return deny("artifact_revoked")
     if attestation is None or not review_approved:
