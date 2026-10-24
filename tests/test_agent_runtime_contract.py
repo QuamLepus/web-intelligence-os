@@ -235,6 +235,23 @@ def test_artifact_review_key_must_differ_from_readiness_operator_and_assessor():
         assert result.reason == "artifact_signature_invalid"
 
 
+def test_artifact_reviewer_identity_must_differ_from_readiness_roles():
+    for shared_identity in ("runtime-operator", "independent-assessor"):
+        artifact_key = TrustedAttestationKey(
+            key_id="review-key-1", signer_id=shared_identity,
+            public_key_pem=_PUBLIC_KEY_PEM.decode("ascii"),
+            valid_from=NOW - timedelta(days=1),
+            expires_at=NOW + timedelta(days=1))
+        unsigned = _attestation(signature="pending", signer_id=shared_identity)
+        signature = base64.urlsafe_b64encode(
+            _PRIVATE_KEY.sign(attestation_signing_payload(unsigned))
+        ).decode().rstrip("=")
+        signed = unsigned.model_copy(update={"signature": signature})
+        result = _decide(attestation=signed, trusted_keys={"review-key-1": artifact_key})
+        assert not result.admitted
+        assert result.reason == "artifact_signature_invalid"
+
+
 def test_backend_readiness_requires_cryptographically_distinct_signers():
     readiness = _ready(assessor_private_key=_READINESS_PRIVATE_KEY)
     same_key_as_assessor = TrustedAttestationKey(
