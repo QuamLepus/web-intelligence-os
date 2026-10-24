@@ -135,10 +135,11 @@ future-dated, mismatched, or revoked-key assertions fail closed. It rejects reso
 cover mismatches, unavailable backends, bounds, and rejection of unknown
 fields.
 
-Artifact-attestation creation times must be timezone-aware at contract parsing;
-naive timestamps are rejected before the claim can be signed or verified. The
-module verifies Ed25519 signatures over a canonical, timezone-aware
-attestation payload using operator-supplied trusted-key records. Each record
+All security-contract timestamps require an explicit timezone and must be
+provided as aware datetime objects or ISO-8601 datetime strings. Numeric Unix
+timestamps (including numeric strings) are rejected to avoid implicit epoch
+interpretation. The module verifies Ed25519 signatures over a canonical,
+timezone-aware attestation payload using operator-supplied trusted-key records. Each record
 binds key ID and signer identity to a PEM public key, validity interval, and
 optional key-revocation instant. The
 admission policy itself requires this signature verification as well as a

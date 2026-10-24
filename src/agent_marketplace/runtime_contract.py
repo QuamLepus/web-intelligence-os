@@ -20,6 +20,21 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+def _explicit_datetime_input(value: object) -> object:
+    """Reject implicit Unix-epoch coercion; require an aware datetime/ISO value."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("timestamp must be an ISO-8601 datetime with a timezone") from exc
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("timestamp must include a timezone")
+        return value
+    raise ValueError("timestamp must be a datetime or ISO-8601 string with a timezone")
+
+
 class RuntimeBackend(StrEnum):
     WASM_WASI = "wasm_wasi"
     SANDBOXED_KUBERNETES = "sandboxed_kubernetes"
@@ -62,6 +77,11 @@ class TrustedAttestationKey(StrictContract):
     expires_at: datetime
     revoked_at: datetime | None = None
 
+    @field_validator("valid_from", "expires_at", "revoked_at", mode="before")
+    @classmethod
+    def _timestamp_input_explicit(cls, value: object) -> object:
+        return None if value is None else _explicit_datetime_input(value)
+
     @field_validator("valid_from", "expires_at", "revoked_at")
     @classmethod
     def _timezone_required(cls, value: datetime | None) -> datetime | None:
@@ -95,6 +115,11 @@ class ArtifactAttestation(StrictContract):
     signature_algorithm: Literal["ed25519"]
     signature: str = Field(min_length=1, max_length=256)
     created_at: datetime
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_input_explicit(cls, value: object) -> object:
+        return _explicit_datetime_input(value)
 
     @field_validator("created_at")
     @classmethod
@@ -205,6 +230,11 @@ class BackendGateEvidence(StrictContract):
     test_run_id: str = Field(min_length=1, max_length=160)
     report_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
+    @field_validator("tested_at", mode="before")
+    @classmethod
+    def _tested_at_input_explicit(cls, value: object) -> object:
+        return _explicit_datetime_input(value)
+
     @field_validator("tested_at")
     @classmethod
     def _tested_at_timezone_required(cls, value: datetime) -> datetime:
@@ -252,6 +282,11 @@ class BackendReadiness(StrictContract):
                for digest in value.values()):
             raise ValueError("gate evidence must use lowercase SHA-256 digests")
         return value
+
+    @field_validator("issued_at", "expires_at", mode="before")
+    @classmethod
+    def _readiness_timestamp_input_explicit(cls, value: object) -> object:
+        return _explicit_datetime_input(value)
 
     @field_validator("issued_at", "expires_at")
     @classmethod
@@ -530,6 +565,11 @@ class RuntimeAuditEvent(StrictContract):
     artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     policy_revision: str = Field(min_length=1, max_length=80)
     reason_code: str = Field(min_length=1, max_length=80)
+
+    @field_validator("occurred_at", mode="before")
+    @classmethod
+    def _occurred_at_input_explicit(cls, value: object) -> object:
+        return _explicit_datetime_input(value)
 
     @field_validator("occurred_at")
     @classmethod
