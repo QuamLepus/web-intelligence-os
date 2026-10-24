@@ -10,7 +10,7 @@ import base64
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from cryptography.exceptions import InvalidSignature
@@ -95,11 +95,20 @@ class RuntimeAuditLedger:
     KEY_PREFIX = "wcp:v1:agent_runtime:audit"
     ZERO_HASH = "0" * 64
 
-    def __init__(self, redis_client, *, max_events_per_tenant: int = 5000) -> None:
+    def __init__(
+        self,
+        redis_client,
+        *,
+        max_events_per_tenant: int = 5000,
+        maximum_future_skew_seconds: int = 300,
+    ) -> None:
         if max_events_per_tenant < 1:
             raise ValueError("max_events_per_tenant must be positive")
+        if maximum_future_skew_seconds < 0:
+            raise ValueError("maximum_future_skew_seconds must not be negative")
         self.r = redis_client
         self.max_events = max_events_per_tenant
+        self.maximum_future_skew = timedelta(seconds=maximum_future_skew_seconds)
 
     @classmethod
     def _keys(cls, tenant_id: str) -> tuple[str, str]:
@@ -120,6 +129,9 @@ class RuntimeAuditLedger:
         tenant_id = str(tenant_id)
         if not tenant_id or event.tenant_id != tenant_id:
             raise AuditLedgerError("event tenant must match ledger tenant")
+        occurred_at = event.occurred_at.astimezone(UTC)
+        if occurred_at > datetime.now(UTC) + self.maximum_future_skew:
+            raise AuditLedgerError("event timestamp is too far in the future")
         records_key, head_key = self._keys(tenant_id)
         with self.r.pipeline() as pipe:
             while True:

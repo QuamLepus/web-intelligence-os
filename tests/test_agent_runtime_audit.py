@@ -35,6 +35,16 @@ def _ledger(redis_client=None, max_events=100):
         max_events_per_tenant=max_events)
 
 
+def test_audit_ledger_rejects_events_with_far_future_timestamps():
+    ledger = _ledger()
+    future_event = _event().model_copy(update={
+        "occurred_at": datetime.now(UTC) + timedelta(minutes=6)})
+
+    with pytest.raises(AuditLedgerError, match="timestamp is too far in the future"):
+        ledger.append("tenant-a", future_event)
+    assert ledger.verify("tenant-a")
+
+
 def test_audit_ledger_is_tenant_partitioned_and_rejects_mismatched_tenant():
     ledger = _ledger()
     record = ledger.append("tenant-a", _event())
