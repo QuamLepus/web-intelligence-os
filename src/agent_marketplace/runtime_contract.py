@@ -383,6 +383,35 @@ def _verify_readiness_signer(
     return True
 
 
+def _artifact_key_is_distinct_from_readiness_roles(
+    attestation: ArtifactAttestation,
+    trusted_artifact_keys: Mapping[str, TrustedAttestationKey],
+    readiness: BackendReadiness,
+    trusted_readiness_keys: Mapping[str, TrustedAttestationKey],
+    trusted_assessor_keys: Mapping[str, TrustedAttestationKey],
+) -> bool:
+    """Require artifact review, readiness operator, and assessor keys to differ."""
+    records = (
+        trusted_artifact_keys.get(attestation.key_id),
+        trusted_readiness_keys.get(readiness.key_id),
+        trusted_assessor_keys.get(readiness.assessor_key_id),
+    )
+    public_keys = []
+    try:
+        for record in records:
+            if record is None:
+                return False
+            key = serialization.load_pem_public_key(record.public_key_pem.encode("ascii"))
+            if not isinstance(key, Ed25519PublicKey):
+                return False
+            public_keys.append(key.public_bytes(
+                serialization.Encoding.DER,
+                serialization.PublicFormat.SubjectPublicKeyInfo))
+    except (ValueError, TypeError, UnicodeEncodeError):
+        return False
+    return len(set(public_keys)) == len(public_keys)
+
+
 def verify_backend_readiness(
     readiness: BackendReadiness,
     trusted_keys: Mapping[str, TrustedAttestationKey],
@@ -552,6 +581,10 @@ def decide_admission(
     if not verify_backend_readiness(
             readiness, trusted_readiness_keys, trusted_conformance_keys):
         return deny("backend_not_provisioned")
+    if not _artifact_key_is_distinct_from_readiness_roles(
+            attestation, trusted_keys, readiness,
+            trusted_readiness_keys, trusted_conformance_keys):
+        return deny("artifact_signature_invalid")
     if (current_readiness_generation is None
             or current_readiness_generation != readiness.generation):
         return deny("backend_readiness_stale")
