@@ -155,6 +155,9 @@ class RuntimeAuditLedger:
                     # The window is bounded by max_events, so this scan is bounded.
                     existing_records = self._decode_records(
                         pipe.lrange(records_key, 0, -1))
+                    if not self._verify_snapshot(tenant_id, existing_records, head):
+                        raise AuditLedgerError(
+                            "cannot append to an invalid audit ledger")
                     event_data = _canonical_event(event)
                     for existing in existing_records:
                         if existing.event.event_id == event.event_id:
