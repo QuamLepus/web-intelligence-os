@@ -223,6 +223,14 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         private_key=private_key, created_at=now)
     trusted_keys = {"audit-key-1": trusted_key}
     assert checkpoint.sequence == 3
+    checkpoint_data = checkpoint.model_dump()
+    for timestamp in (1_800_000_000, "1800000000"):
+        with pytest.raises(ValidationError, match="timestamp"):
+            AuditCheckpoint(**{**checkpoint_data, "created_at": timestamp})
+    with pytest.raises(ValidationError, match="timezone"):
+        AuditCheckpoint(**{
+            **checkpoint_data, "created_at": now.replace(tzinfo=None),
+        })
     with pytest.raises(ValueError, match="retention window is inconsistent"):
         AuditCheckpoint(**{
             **checkpoint.model_dump(),

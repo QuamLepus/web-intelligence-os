@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from redis.exceptions import WatchError
 
 from src.agent_marketplace.runtime_contract import (
@@ -77,6 +77,32 @@ class AuditCheckpoint(StrictContract):
     key_id: str = Field(min_length=1, max_length=160)
     signature_algorithm: Literal["ed25519"] = "ed25519"
     signature: str = Field(min_length=1, max_length=256)
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _timestamp_input_explicit(cls, value: object) -> object:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError(
+                    "checkpoint timestamp must be an ISO-8601 datetime with a timezone"
+                ) from exc
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                raise ValueError("checkpoint timestamp must include a timezone")
+            return value
+        raise ValueError(
+            "checkpoint timestamp must be a datetime or ISO-8601 string with a timezone"
+        )
+
+    @field_validator("created_at")
+    @classmethod
+    def _timestamp_timezone_required(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("checkpoint timestamp must include a timezone")
+        return value
 
     @model_validator(mode="after")
     def _retained_window_is_consistent(self) -> "AuditCheckpoint":
