@@ -122,12 +122,14 @@ def verify_attestation_signature(
     trusted_keys: Mapping[str, TrustedAttestationKey],
     *,
     now: datetime | None = None,
+    maximum_age_seconds: int = 90 * 24 * 60 * 60,
 ) -> bool:
-    """Verify signature and signing-key identity, validity, and revocation.
+    """Verify signature, key identity/lifecycle, and attestation freshness.
 
     `key_id` selects a trusted operator-provisioned record. Unknown keys,
     signer/key mismatch, keys outside their validity window, revoked keys,
-    malformed signatures, or payload timestamps fail closed.
+    malformed signatures, future/stale payload timestamps, or a nonpositive age
+    bound fail closed. The default attestation age is 90 days.
     """
     key = trusted_keys.get(attestation.key_id)
     if (key is None or key.key_id != attestation.key_id
@@ -143,9 +145,11 @@ def verify_attestation_signature(
     if attested_at.tzinfo is None or attested_at.utcoffset() is None:
         return False
     attested_at = attested_at.astimezone(UTC)
-    if (current_time < valid_from or current_time >= expires_at
+    if (maximum_age_seconds < 1
+            or current_time < valid_from or current_time >= expires_at
             or attested_at < valid_from or attested_at >= expires_at
             or attested_at > current_time
+            or (current_time - attested_at).total_seconds() > maximum_age_seconds
             or (key.revoked_at is not None
                 and current_time >= key.revoked_at.astimezone(UTC))):
         return False
@@ -512,6 +516,7 @@ def decide_admission(
     maximum_input_bytes: int = 1_048_576,
     maximum_deadline_seconds: int = 3600,
     maximum_artifact_bytes: int = 50 * 1024 * 1024,
+    maximum_attestation_age_seconds: int = 90 * 24 * 60 * 60,
 ) -> AdmissionDecision:
     """Evaluate explicit pinning and readiness; never choose another backend.
 
@@ -540,7 +545,9 @@ def decide_admission(
         return deny("artifact_revoked")
     if attestation is None or not review_approved:
         return deny("artifact_not_approved")
-    if not verify_attestation_signature(attestation, trusted_keys):
+    if not verify_attestation_signature(
+            attestation, trusted_keys,
+            maximum_age_seconds=maximum_attestation_age_seconds):
         return deny("artifact_signature_invalid")
     if not verify_backend_readiness(
             readiness, trusted_readiness_keys, trusted_conformance_keys):

@@ -380,6 +380,21 @@ def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
     assert not verify_attestation_signature(
         _attestation(created_at=NOW + timedelta(minutes=1)), test_keys, now=NOW)
 
+    old_time = NOW - timedelta(days=91)
+    long_lived_key = _trusted_key(
+        public_pem, valid_from=NOW - timedelta(days=120),
+        expires_at=NOW + timedelta(days=120))
+    old_unsigned = _attestation(created_at=old_time, signature="pending")
+    old_signature = base64.urlsafe_b64encode(
+        private_key.sign(attestation_signing_payload(old_unsigned))
+    ).decode().rstrip("=")
+    old_signed = old_unsigned.model_copy(update={"signature": old_signature})
+    assert not verify_attestation_signature(
+        old_signed, {"review-key-1": long_lived_key}, now=NOW)
+    assert verify_attestation_signature(
+        old_signed, {"review-key-1": long_lived_key}, now=NOW,
+        maximum_age_seconds=100 * 24 * 60 * 60)
+
 
 def test_artifact_bytes_are_bounded_and_match_signed_digest():
     artifact = b"minimal inert wasm artifact fixture"
