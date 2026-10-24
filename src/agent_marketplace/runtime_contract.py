@@ -390,7 +390,10 @@ def _artifact_key_is_distinct_from_readiness_roles(
     trusted_readiness_keys: Mapping[str, TrustedAttestationKey],
     trusted_assessor_keys: Mapping[str, TrustedAttestationKey],
 ) -> bool:
-    """Require artifact review, readiness operator, and assessor keys to differ."""
+    """Require distinct keys and signer identities across all three roles."""
+    if (attestation.signer_id == readiness.signer_id
+            or attestation.signer_id == readiness.assessor_id):
+        return False
     records = (
         trusted_artifact_keys.get(attestation.key_id),
         trusted_readiness_keys.get(readiness.key_id),
