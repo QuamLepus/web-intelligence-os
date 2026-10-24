@@ -17,7 +17,7 @@ from typing import Literal
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class RuntimeBackend(StrEnum):
@@ -507,6 +507,12 @@ class AdmissionDecision(StrictContract):
     backend: RuntimeBackend
     artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     policy_revision: str
+
+    @model_validator(mode="after")
+    def _admission_reason_matches_state(self) -> "AdmissionDecision":
+        if self.admitted != (self.reason == "admitted"):
+            raise ValueError("admission state and reason must be consistent")
+        return self
 
 
 class RuntimeAuditEvent(StrictContract):
