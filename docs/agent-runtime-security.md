@@ -194,8 +194,9 @@ must be nonempty strings at ledger boundaries; non-string values are never
 coerced into tenant keys. Redis head fields must decode as unique UTF-8 text;
 malformed or ambiguous decoded fields fail closed. Signed checkpoint signatures
 must use canonical unpadded URL-safe Base64. Append and checkpoint-verification
-boundaries also revalidate Pydantic objects from their
-serialized field values so unchecked model-copy updates cannot bypass contracts. The ledger does not export or persist checkpoints itself. It is not
+boundaries also revalidate events, checkpoints, and trusted-key records from
+their serialized field values so unchecked model-copy updates cannot bypass
+contracts. The ledger does not export or persist checkpoints itself. It is not
 wired into runtime paths; Redis operators can rewrite both records and heads,
 so without an externally retained checkpoint it is not immutable, tamper-proof,
 or externally anchored. Retention keeps the latest configured window and the

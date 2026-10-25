@@ -521,8 +521,13 @@ class RuntimeAuditLedger:
         if (checkpoint.signature_algorithm != "ed25519"
                 or checkpoint.tenant_sha256 != expected_tenant):
             return False
-        key = trusted_keys.get(checkpoint.key_id)
-        if (key is None or key.key_id != checkpoint.key_id
+        try:
+            key = trusted_keys.get(checkpoint.key_id)
+            key = TrustedAttestationKey.model_validate(
+                key.model_dump(mode="python"))
+        except (AttributeError, TypeError, ValueError, ValidationError):
+            return False
+        if (key.key_id != checkpoint.key_id
                 or key.signer_id != checkpoint.signer_id):
             return False
         if now is None:

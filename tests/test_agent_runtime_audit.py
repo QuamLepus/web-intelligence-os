@@ -334,6 +334,15 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key}, now=now)
     assert RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
+    for invalid_key in (
+        trusted_key.model_copy(update={"valid_from": now.replace(tzinfo=None)}),
+        trusted_key.model_copy(update={"expires_at": now - timedelta(days=2)}),
+    ):
+        assert not RuntimeAuditLedger.verify_checkpoint(
+            checkpoint, tenant_id="tenant-a",
+            trusted_keys={"audit-key-1": invalid_key}, now=now)
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint, tenant_id="tenant-a", trusted_keys={"audit-key-1": object()}, now=now)
     assert not RuntimeAuditLedger.verify_checkpoint(
         checkpoint.model_copy(update={"signature": checkpoint.signature + "="}),
         tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
