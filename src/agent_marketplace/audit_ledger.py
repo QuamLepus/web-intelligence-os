@@ -138,6 +138,8 @@ class AuditCheckpoint(StrictContract):
                 raise ValueError("checkpoint timestamp must use a standard-library timezone")
             return value
         if type(value) is str:
+            if len(value) > 64:
+                raise ValueError("checkpoint timestamp text exceeds the 64-character limit")
             try:
                 parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
             except ValueError as exc:

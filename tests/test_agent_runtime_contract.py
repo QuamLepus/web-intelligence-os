@@ -594,6 +594,8 @@ def test_contract_timestamps_reject_implicit_epoch_coercion():
         _attestation(created_at=1_800_000_000)
     with pytest.raises(ValidationError, match="timestamp"):
         _attestation(created_at="1800000000")
+    with pytest.raises(ValidationError, match="64-character limit"):
+        _attestation(created_at="2026-10-25T12:00:00+00:00" + " " * 65)
     with pytest.raises(ValidationError, match="timestamp"):
         _trusted_key(valid_from=1_800_000_000)
     with pytest.raises(ValidationError, match="timestamp"):
