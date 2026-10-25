@@ -308,6 +308,11 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     checkpoint = ledger.create_checkpoint(
         "tenant-a", signer_id="audit-operator", key_id="audit-key-1",
         private_key=private_key, created_at=now)
+    for invalid_created_at in (0, False, "now", now.replace(tzinfo=None)):
+        with pytest.raises(AuditLedgerError, match="timezone-aware datetime"):
+            ledger.create_checkpoint(
+                "tenant-a", signer_id="audit-operator", key_id="audit-key-1",
+                private_key=private_key, created_at=invalid_created_at)
     trusted_keys = {"audit-key-1": trusted_key}
     assert checkpoint.sequence == 3
     checkpoint_data = checkpoint.model_dump()
