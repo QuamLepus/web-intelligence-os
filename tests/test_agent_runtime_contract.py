@@ -645,6 +645,13 @@ def test_verifiers_fail_closed_on_invalid_now_argument_types():
         signed, _TRUSTED_KEYS, now=overflowing_now)
     assert not verify_backend_readiness(
         readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=overflowing_now)
+    extreme_key = _TRUSTED_KEYS["review-key-1"].model_copy(
+        update={"valid_from": overflowing_now})
+    assert not verify_attestation_signature(
+        signed, {"review-key-1": extreme_key}, now=NOW)
+    extreme_readiness = readiness.model_copy(update={"issued_at": overflowing_now})
+    assert not verify_backend_readiness(
+        extreme_readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW)
 
     class ReadinessSubclass(BackendReadiness):
         pass
