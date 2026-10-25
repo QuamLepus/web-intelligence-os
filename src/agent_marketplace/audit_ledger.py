@@ -102,7 +102,7 @@ class AuditCheckpoint(StrictContract):
     @field_validator("created_at", mode="before")
     @classmethod
     def _timestamp_input_explicit(cls, value: object) -> object:
-        if isinstance(value, datetime):
+        if type(value) is datetime:
             return value
         if isinstance(value, str):
             try:
@@ -115,12 +115,16 @@ class AuditCheckpoint(StrictContract):
                 raise ValueError("checkpoint timestamp must include a timezone")
             return value
         raise ValueError(
-            "checkpoint timestamp must be a datetime or ISO-8601 string with a timezone"
+            "checkpoint timestamp must be a built-in datetime or ISO-8601 string with a timezone"
         )
 
     @field_validator("created_at")
     @classmethod
     def _timestamp_timezone_required(cls, value: datetime) -> datetime:
+        if type(value) is not datetime:
+            raise ValueError(
+                "checkpoint timestamp must be a built-in datetime with a timezone"
+            )
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("checkpoint timestamp must include a timezone")
         return value

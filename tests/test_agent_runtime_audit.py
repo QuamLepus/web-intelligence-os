@@ -560,6 +560,8 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     trusted_keys = {"audit-key-1": trusted_key}
     assert checkpoint.sequence == 3
     checkpoint_data = checkpoint.model_dump()
+    with pytest.raises(ValidationError, match="built-in datetime"):
+        AuditCheckpoint(**{**checkpoint_data, "created_at": hostile_created_at})
     for timestamp in (1_800_000_000, "1800000000"):
         with pytest.raises(ValidationError, match="timestamp"):
             AuditCheckpoint(**{**checkpoint_data, "created_at": timestamp})
