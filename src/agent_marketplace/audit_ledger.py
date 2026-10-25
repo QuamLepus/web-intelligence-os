@@ -326,6 +326,8 @@ class RuntimeAuditLedger:
                     continue
 
     def _decode_records(self, raw_records: list[Any]) -> list[AuditRecord]:
+        if type(raw_records) is not list:
+            raise AuditLedgerError("invalid audit record collection")
         records = []
         for raw in raw_records:
             try:
