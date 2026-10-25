@@ -915,9 +915,12 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     assert not RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a",
         trusted_keys={"x" * 161: trusted_key}, now=now)
+    overflowing_checkpoint = checkpoint.model_copy(
+        update={"created_at": overflowing_created_at})
+    with pytest.raises(ValueError, match="cannot be normalized to UTC"):
+        _checkpoint_payload(overflowing_checkpoint)
     assert not RuntimeAuditLedger.verify_checkpoint(
-        checkpoint.model_copy(update={"created_at": overflowing_created_at}),
-        tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
+        overflowing_checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
     assert not RuntimeAuditLedger.verify_checkpoint(
         object(), tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
     for invalid_key in (
