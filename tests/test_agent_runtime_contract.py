@@ -568,3 +568,24 @@ def test_audit_event_contains_bounded_metadata_not_input_or_output_payloads():
         RuntimeAuditEvent(**{**event.model_dump(), "input": {"secret": "x"}})
     with pytest.raises(ValidationError, match="timezone"):
         RuntimeAuditEvent(**{**event.model_dump(), "occurred_at": NOW.replace(tzinfo=None)})
+
+    class HostileDateTime(datetime):
+        def utcoffset(self):
+            raise AssertionError("datetime subclass callbacks must not run")
+
+    hostile_datetime = HostileDateTime(
+        NOW.year, NOW.month, NOW.day, NOW.hour, NOW.minute, NOW.second,
+        NOW.microsecond, tzinfo=UTC)
+    with pytest.raises(ValidationError, match="timestamp"):
+        RuntimeAuditEvent(**{
+            **event.model_dump(), "occurred_at": hostile_datetime,
+        })
+
+    class HostileTimestamp(str):
+        def replace(self, *args, **kwargs):
+            raise AssertionError("string subclass callbacks must not run")
+
+    with pytest.raises(ValidationError, match="timestamp"):
+        RuntimeAuditEvent(**{
+            **event.model_dump(), "occurred_at": HostileTimestamp(NOW.isoformat()),
+        })

@@ -22,9 +22,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 def _explicit_datetime_input(value: object) -> object:
     """Reject implicit Unix-epoch coercion; require an aware datetime/ISO value."""
-    if isinstance(value, datetime):
+    if type(value) is datetime:
         return value
-    if isinstance(value, str):
+    if type(value) is str:
         try:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError as exc:
