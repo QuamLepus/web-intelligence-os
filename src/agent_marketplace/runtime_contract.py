@@ -57,6 +57,9 @@ class RuntimeBackend(StrEnum):
     MICROVM = "microvm"
 
 
+MAX_TRUSTED_ATTESTATION_KEYS = 256
+
+
 BACKEND_REQUIRED_GATES: dict[RuntimeBackend, frozenset[str]] = {
     RuntimeBackend.WASM_WASI: frozenset({
         "runtime_version_pinned", "component_abi_pinned", "host_imports_allowlisted",
@@ -229,7 +232,7 @@ def verify_attestation_signature(
     """
     if (type(attestation) is not ArtifactAttestation
             or type(trusted_keys) is not dict
-            or len(trusted_keys) > 256
+            or len(trusted_keys) > MAX_TRUSTED_ATTESTATION_KEYS
             or any(type(key_id) is not str or not key_id or len(key_id) > 160
                    for key_id in trusted_keys)):
         return False
@@ -574,7 +577,9 @@ def _artifact_key_is_distinct_from_readiness_roles(
     """Require distinct keys and signer identities across all three roles."""
     key_maps = (trusted_artifact_keys, trusted_readiness_keys, trusted_assessor_keys)
     if any(type(keys) is not dict
-           or any(type(key_id) is not str for key_id in keys)
+           or len(keys) > MAX_TRUSTED_ATTESTATION_KEYS
+           or any(type(key_id) is not str or not key_id or len(key_id) > 160
+                  for key_id in keys)
            for keys in key_maps):
         return False
     if (attestation.signer_id == readiness.signer_id
@@ -614,8 +619,12 @@ def verify_backend_readiness(
     if (type(readiness) is not BackendReadiness
             or type(trusted_keys) is not dict
             or type(trusted_assessor_keys) is not dict
-            or any(type(key_id) is not str for key_id in trusted_keys)
-            or any(type(key_id) is not str for key_id in trusted_assessor_keys)):
+            or len(trusted_keys) > MAX_TRUSTED_ATTESTATION_KEYS
+            or len(trusted_assessor_keys) > MAX_TRUSTED_ATTESTATION_KEYS
+            or any(type(key_id) is not str or not key_id or len(key_id) > 160
+                   for key_id in trusted_keys)
+            or any(type(key_id) is not str or not key_id or len(key_id) > 160
+                   for key_id in trusted_assessor_keys)):
         return False
     try:
         readiness = BackendReadiness.model_validate(
