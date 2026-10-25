@@ -396,6 +396,18 @@ def test_admission_enforces_resource_bounds():
         _request(deadline_seconds=3601)
 
 
+def test_trusted_key_rejects_string_subclasses():
+    class HostileText(str):
+        def encode(self, *args, **kwargs):
+            raise AssertionError("trusted-key string subclass callbacks must not run")
+
+    data = _trusted_key().model_dump()
+    with pytest.raises(ValidationError, match="built-in strings"):
+        TrustedAttestationKey(**{
+            **data, "public_key_pem": HostileText(data["public_key_pem"]),
+        })
+
+
 def test_artifact_attestation_requires_timezone_aware_creation_time():
     with pytest.raises(ValidationError, match="timezone"):
         _attestation(created_at=NOW.replace(tzinfo=None))
