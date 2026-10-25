@@ -197,7 +197,8 @@ must use canonical unpadded URL-safe Base64. Unsupported cryptographic key
 algorithms fail closed during verification. Append and checkpoint-verification
 boundaries accept the contract model types directly and revalidate events,
 checkpoints, and trusted-key records from serialized field values so unchecked
-model-copy updates or arbitrary model-like objects cannot bypass contracts. The ledger does not export or persist checkpoints itself. It is not
+model-copy updates or arbitrary model-like objects cannot bypass contracts.
+Checkpoint verification accepts only a built-in dictionary for trusted keys. The ledger does not export or persist checkpoints itself. It is not
 wired into runtime paths; Redis operators can rewrite both records and heads,
 so without an externally retained checkpoint it is not immutable, tamper-proof,
 or externally anchored. Retention keeps the latest configured window and the
