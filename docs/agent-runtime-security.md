@@ -184,8 +184,8 @@ signature; `matches_checkpoint` requires trusted-key records and verifies the
 checkpoint's retained-window anchor consistency, strict integer counters, signature,
 tenant binding, signer/key lifecycle, and current Redis head before reporting a match. Stored
 audit records must use the exact canonical JSON encoding emitted by the
-ledger; records over 16 KiB, duplicate keys, noncanonical representations,
-and excessively nested JSON fail closed. Their sequences must be actual nonnegative JSON integers, so
+ledger; appends and reads reject records over 16 KiB, duplicate keys,
+noncanonical representations, and excessively nested JSON fail closed. Their sequences must be actual nonnegative JSON integers, so
 coercible booleans,
 floats, and strings fail verification. Redis head sequence fields must use
 canonical unsigned decimal strings without signs or leading zeroes. Redis

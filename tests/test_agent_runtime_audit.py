@@ -297,6 +297,16 @@ def test_audit_record_decoder_rejects_oversized_records():
         ledger.read("tenant-a")
 
 
+def test_audit_append_rejects_serialized_records_over_size_limit(monkeypatch):
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client)
+    monkeypatch.setattr(RuntimeAuditLedger, "MAX_RECORD_BYTES", 1)
+
+    with pytest.raises(AuditLedgerError, match="exceeds the byte limit"):
+        ledger.append("tenant-a", _event())
+    assert ledger.verify("tenant-a")
+
+
 def test_audit_record_decoder_rejects_duplicate_json_keys():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client)
