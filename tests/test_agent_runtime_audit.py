@@ -840,6 +840,11 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     for timestamp in (1_800_000_000, "1800000000"):
         with pytest.raises(ValidationError, match="timestamp"):
             AuditCheckpoint(**{**checkpoint_data, "created_at": timestamp})
+    with pytest.raises(ValidationError, match="64-character limit"):
+        AuditCheckpoint(**{
+            **checkpoint_data,
+            "created_at": "2026-10-25T12:00:00+00:00" + " " * 65,
+        })
     with pytest.raises(ValidationError, match="timezone"):
         AuditCheckpoint(**{
             **checkpoint_data, "created_at": now.replace(tzinfo=None),
