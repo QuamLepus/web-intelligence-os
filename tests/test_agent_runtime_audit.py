@@ -20,6 +20,7 @@ from src.agent_marketplace.audit_ledger import (
     AuditLedgerError,
     RuntimeAuditLedger,
     _checkpoint_payload,
+    _record_hash,
 )
 from src.agent_marketplace.runtime_contract import (
     RuntimeAuditEvent,
@@ -155,6 +156,18 @@ def test_snapshot_verifier_rejects_malformed_record_fields(sequence, previous_ha
         event=_event())
 
     assert not RuntimeAuditLedger._verify_snapshot("tenant-a", [record], {})
+
+
+def test_snapshot_verifier_rejects_sequence_zero_for_nonempty_chain():
+    event = _event()
+    zero_hash = "0" * 64
+    event_hash = _record_hash(0, zero_hash, event.model_dump(mode="json"))
+    record = AuditRecord(
+        sequence=0, previous_hash=zero_hash, event_hash=event_hash, event=event)
+    # Legacy heads have no explicit retention anchor; sequence zero remains invalid.
+    head = {"sequence": "0", "event_hash": event_hash}
+
+    assert not RuntimeAuditLedger._verify_snapshot("tenant-a", [record], head)
 
 
 def test_snapshot_verifier_revalidates_copied_audit_events():

@@ -364,8 +364,8 @@ class RuntimeAuditLedger:
                 if type(value) is not dict:
                     raise ValueError("audit record must be an object")
                 sequence = value["sequence"]
-                if type(sequence) is not int or sequence < 0:
-                    raise ValueError("audit record sequence must be a nonnegative integer")
+                if type(sequence) is not int or sequence < 1:
+                    raise ValueError("audit record sequence must be a positive integer")
                 previous_hash = value["previous_hash"]
                 event_hash = value["event_hash"]
                 if (type(previous_hash) is not str
@@ -426,7 +426,7 @@ class RuntimeAuditLedger:
             return False
         validated_events = []
         for record in records:
-            if (type(record.sequence) is not int or record.sequence < 0
+            if (type(record.sequence) is not int or record.sequence < 1
                     or type(record.previous_hash) is not str
                     or len(record.previous_hash) != 64
                     or any(char not in "0123456789abcdef"
