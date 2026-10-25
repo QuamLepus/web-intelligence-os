@@ -10,6 +10,7 @@ from unittest.mock import patch
 import fakeredis
 import pytest
 from pydantic import ValidationError
+from redis.exceptions import RedisError
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -232,6 +233,24 @@ def test_audit_ledger_normalizes_timestamp_utc_overflow():
     with pytest.raises(AuditLedgerError, match="cannot be normalized to UTC"):
         ledger.append("tenant-a", boundary_event)
     assert ledger.verify("tenant-a")
+
+
+def test_append_normalizes_redis_operation_failures(monkeypatch):
+    ledger = _ledger()
+
+    class FailedPipeline:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def watch(self, *args):
+            raise RedisError("Redis is unavailable")
+
+    monkeypatch.setattr(ledger.r, "pipeline", lambda *args, **kwargs: FailedPipeline())
+    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+        ledger.append("tenant-a", _event())
 
 
 def test_audit_ledger_is_tenant_partitioned_and_rejects_mismatched_tenant():

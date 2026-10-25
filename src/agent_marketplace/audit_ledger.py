@@ -351,6 +351,9 @@ class RuntimeAuditLedger:
                     return record
                 except WatchError:
                     continue
+                except RedisError as exc:
+                    raise AuditLedgerError(
+                        "cannot append to an invalid audit ledger") from exc
 
     def _decode_records(self, raw_records: list[Any]) -> list[AuditRecord]:
         if type(raw_records) is not list:
