@@ -372,6 +372,11 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
                 len(BACKEND_REQUIRED_GATES[RuntimeBackend.WASM_WASI]) + 1
             )
         })
+    known_gate = next(iter(BACKEND_REQUIRED_GATES[RuntimeBackend.WASM_WASI]))
+    with pytest.raises(ValidationError, match="keys and digests must be bounded"):
+        _ready(conformance_evidence={known_gate: "0" * 100_000})
+    with pytest.raises(ValidationError, match="keys and digests must be bounded"):
+        _ready(conformance_evidence={"g" * 100_000: "0" * 64})
 
 
 def test_readiness_conformance_evidence_rejects_non_builtin_containers_and_strings():
