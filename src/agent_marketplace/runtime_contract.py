@@ -189,7 +189,9 @@ def verify_attestation_signature(
     malformed signatures, future/stale payload timestamps, or a nonpositive age
     bound fail closed. The default attestation age is 90 days.
     """
-    if type(attestation) is not ArtifactAttestation:
+    if (type(attestation) is not ArtifactAttestation
+            or type(trusted_keys) is not dict
+            or any(type(key_id) is not str for key_id in trusted_keys)):
         return False
     key = trusted_keys.get(attestation.key_id)
     if (type(key) is not TrustedAttestationKey or key.key_id != attestation.key_id
@@ -484,6 +486,11 @@ def _artifact_key_is_distinct_from_readiness_roles(
     trusted_assessor_keys: Mapping[str, TrustedAttestationKey],
 ) -> bool:
     """Require distinct keys and signer identities across all three roles."""
+    key_maps = (trusted_artifact_keys, trusted_readiness_keys, trusted_assessor_keys)
+    if any(type(keys) is not dict
+           or any(type(key_id) is not str for key_id in keys)
+           for keys in key_maps):
+        return False
     if (attestation.signer_id == readiness.signer_id
             or attestation.signer_id == readiness.assessor_id):
         return False
@@ -517,7 +524,11 @@ def verify_backend_readiness(
     maximum_validity_seconds: int = 24 * 60 * 60,
 ) -> bool:
     """Verify independently assessed gate evidence and operator readiness."""
-    if type(readiness) is not BackendReadiness:
+    if (type(readiness) is not BackendReadiness
+            or type(trusted_keys) is not dict
+            or type(trusted_assessor_keys) is not dict
+            or any(type(key_id) is not str for key_id in trusted_keys)
+            or any(type(key_id) is not str for key_id in trusted_assessor_keys)):
         return False
     current_time = _normalized_utc_now(now)
     if current_time is None:
