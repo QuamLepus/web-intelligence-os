@@ -10,8 +10,9 @@ import base64
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
@@ -20,6 +21,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 from pydantic import Field, ValidationError, field_validator, model_validator
+from pydantic_core import TzInfo
 from redis.exceptions import RedisError, WatchError
 
 from src.agent_marketplace.runtime_contract import (
@@ -85,6 +87,11 @@ def _record_hash(sequence: int, previous_hash: str,
     return hashlib.sha256(payload).hexdigest()
 
 
+def _has_builtin_timezone(value: datetime) -> bool:
+    """Avoid executing caller-provided tzinfo methods during checkpoint checks."""
+    return type(value.tzinfo) in (timezone, ZoneInfo, TzInfo)
+
+
 class AuditCheckpoint(StrictContract):
     """Signed checkpoint that can be exported to an independently protected store."""
 
@@ -113,6 +120,8 @@ class AuditCheckpoint(StrictContract):
     @classmethod
     def _timestamp_input_explicit(cls, value: object) -> object:
         if type(value) is datetime:
+            if not _has_builtin_timezone(value):
+                raise ValueError("checkpoint timestamp must use a standard-library timezone")
             return value
         if type(value) is str:
             try:
@@ -504,8 +513,8 @@ class RuntimeAuditLedger:
         if not self._verify_snapshot(tenant_id, records, head):
             raise AuditLedgerError("cannot checkpoint an invalid audit ledger")
         timestamp = datetime.now(UTC) if created_at is None else created_at
-        if (type(timestamp) is not datetime
-                or timestamp.tzinfo is None or timestamp.utcoffset() is None):
+        if (type(timestamp) is not datetime or not _has_builtin_timezone(timestamp)
+                or timestamp.utcoffset() is None):
             raise AuditLedgerError("checkpoint timestamp must be a timezone-aware datetime")
         checkpoint = AuditCheckpoint(
             tenant_sha256=hashlib.sha256(tenant_id.encode("utf-8")).hexdigest(),
@@ -610,8 +619,8 @@ class RuntimeAuditLedger:
             return False
         if now is None:
             current_time = datetime.now(UTC)
-        elif (type(now) is datetime
-              and now.tzinfo is not None and now.utcoffset() is not None):
+        elif (type(now) is datetime and _has_builtin_timezone(now)
+              and now.utcoffset() is not None):
             current_time = now.astimezone(UTC)
         else:
             return False

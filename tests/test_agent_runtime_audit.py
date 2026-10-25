@@ -587,6 +587,19 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         AuditCheckpoint(**{
             **checkpoint_data, "created_at": now.replace(tzinfo=None),
         })
+
+    class HostileTimezone(tzinfo):
+        def utcoffset(self, dt):
+            raise AssertionError("caller-defined timezone callbacks must not run")
+
+    hostile_timezone_now = now.replace(tzinfo=HostileTimezone())
+    with pytest.raises(ValidationError, match="standard-library timezone"):
+        AuditCheckpoint(**{
+            **checkpoint_data, "created_at": hostile_timezone_now,
+        })
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint, tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key},
+        now=hostile_timezone_now)
     with pytest.raises(ValueError, match="retention window is inconsistent"):
         AuditCheckpoint(**{
             **checkpoint.model_dump(),
