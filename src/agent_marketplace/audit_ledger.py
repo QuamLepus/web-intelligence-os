@@ -539,17 +539,20 @@ class RuntimeAuditLedger:
             timestamp = timestamp.astimezone(UTC)
         except (OverflowError, ValueError) as exc:
             raise AuditLedgerError("checkpoint timestamp cannot be normalized to UTC") from exc
-        checkpoint = AuditCheckpoint(
-            tenant_sha256=hashlib.sha256(tenant_id.encode("utf-8")).hexdigest(),
-            sequence=int(head.get("sequence", 0)),
-            event_hash=head.get("event_hash", self.ZERO_HASH),
-            first_sequence=int(head.get("first_sequence", 1)),
-            first_previous_hash=head.get("first_previous_hash", self.ZERO_HASH),
-            created_at=timestamp,
-            signer_id=signer_id,
-            key_id=key_id,
-            signature="pending",
-        )
+        try:
+            checkpoint = AuditCheckpoint(
+                tenant_sha256=hashlib.sha256(tenant_id.encode("utf-8")).hexdigest(),
+                sequence=int(head.get("sequence", 0)),
+                event_hash=head.get("event_hash", self.ZERO_HASH),
+                first_sequence=int(head.get("first_sequence", 1)),
+                first_previous_hash=head.get("first_previous_hash", self.ZERO_HASH),
+                created_at=timestamp,
+                signer_id=signer_id,
+                key_id=key_id,
+                signature="pending",
+            )
+        except (TypeError, ValueError, ValidationError, RecursionError) as exc:
+            raise AuditLedgerError("invalid checkpoint signing contract") from exc
         signature = base64.urlsafe_b64encode(
             private_key.sign(_checkpoint_payload(checkpoint))).decode("ascii").rstrip("=")
         return checkpoint.model_copy(update={"signature": signature})
