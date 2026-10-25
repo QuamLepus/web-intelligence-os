@@ -197,16 +197,20 @@ class ArtifactAttestation(StrictContract):
         return value
 
 
+def _to_utc(value: datetime) -> datetime | None:
+    try:
+        return value.astimezone(UTC)
+    except (OverflowError, ValueError):
+        return None
+
+
 def _normalized_utc_now(now: datetime | None) -> datetime | None:
     if now is None:
         return datetime.now(UTC)
     if (type(now) is not datetime or not _has_builtin_timezone(now)
             or now.utcoffset() is None):
         return None
-    try:
-        return now.astimezone(UTC)
-    except (OverflowError, ValueError):
-        return None
+    return _to_utc(now)
 
 
 def attestation_signing_payload(attestation: ArtifactAttestation) -> bytes:
@@ -271,19 +275,19 @@ def verify_attestation_signature(
     current_time = _normalized_utc_now(now)
     if current_time is None:
         return False
-    valid_from = key.valid_from.astimezone(UTC)
-    expires_at = key.expires_at.astimezone(UTC)
-    attested_at = attestation.created_at
-    if attested_at.tzinfo is None or attested_at.utcoffset() is None:
+    valid_from = _to_utc(key.valid_from)
+    expires_at = _to_utc(key.expires_at)
+    attested_at = _to_utc(attestation.created_at)
+    revoked_at = _to_utc(key.revoked_at) if key.revoked_at is not None else None
+    if (valid_from is None or expires_at is None or attested_at is None
+            or (key.revoked_at is not None and revoked_at is None)):
         return False
-    attested_at = attested_at.astimezone(UTC)
     if (type(maximum_age_seconds) is not int or maximum_age_seconds < 1
             or current_time < valid_from or current_time >= expires_at
             or attested_at < valid_from or attested_at >= expires_at
             or attested_at > current_time
             or (current_time - attested_at).total_seconds() > maximum_age_seconds
-            or (key.revoked_at is not None
-                and current_time >= key.revoked_at.astimezone(UTC))):
+            or (revoked_at is not None and current_time >= revoked_at)):
         return False
     try:
         public_key = serialization.load_pem_public_key(key.public_key_pem.encode("ascii"))
@@ -537,7 +541,9 @@ def verify_backend_evidence(
             return False
         if raw != canonical_report:
             return False
-        tested_at = report.tested_at.astimezone(UTC)
+        tested_at = _to_utc(report.tested_at)
+        if tested_at is None:
+            return False
         if (report.gate_id != gate
                 or report.backend != readiness.backend
                 or report.environment_id != readiness.environment_id
@@ -567,12 +573,16 @@ def _verify_readiness_signer(
     current_time: datetime,
 ) -> bool:
     key = _validated_trusted_key(key)
-    if (key is None or key.key_id != key_id or key.signer_id != signer_id
-            or issued_at < key.valid_from.astimezone(UTC)
-            or issued_at >= key.expires_at.astimezone(UTC)
-            or expires_at > key.expires_at.astimezone(UTC)
-            or (key.revoked_at is not None
-                and current_time >= key.revoked_at.astimezone(UTC))):
+    if key is None or key.key_id != key_id or key.signer_id != signer_id:
+        return False
+    valid_from = _to_utc(key.valid_from)
+    key_expiry = _to_utc(key.expires_at)
+    revoked_at = _to_utc(key.revoked_at) if key.revoked_at is not None else None
+    if (valid_from is None or key_expiry is None
+            or (key.revoked_at is not None and revoked_at is None)
+            or issued_at < valid_from or issued_at >= key_expiry
+            or expires_at > key_expiry
+            or (revoked_at is not None and current_time >= revoked_at)):
         return False
     try:
         public_key = serialization.load_pem_public_key(key.public_key_pem.encode("ascii"))
@@ -652,8 +662,10 @@ def verify_backend_readiness(
     current_time = _normalized_utc_now(now)
     if current_time is None:
         return False
-    issued_at = readiness.issued_at.astimezone(UTC)
-    expires_at = readiness.expires_at.astimezone(UTC)
+    issued_at = _to_utc(readiness.issued_at)
+    expires_at = _to_utc(readiness.expires_at)
+    if issued_at is None or expires_at is None:
+        return False
     if (type(maximum_validity_seconds) is not int or maximum_validity_seconds < 1
             or (expires_at - issued_at).total_seconds() > maximum_validity_seconds
             or issued_at > current_time or current_time >= expires_at
