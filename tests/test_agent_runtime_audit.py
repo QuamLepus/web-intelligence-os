@@ -58,6 +58,15 @@ def test_audit_redis_values_reject_string_subclasses():
         RuntimeAuditLedger._text(UnsafeRedisText("{}"))
 
 
+def test_audit_head_decoder_rejects_mapping_subclasses():
+    class UnsafeHead(dict):
+        def items(self):
+            raise AssertionError("mapping subclass override must not run")
+
+    with pytest.raises(AuditLedgerError, match="invalid audit head encoding"):
+        RuntimeAuditLedger._text_mapping(UnsafeHead())
+
+
 def test_audit_read_limit_rejects_boolean_coercion():
     ledger = _ledger()
     with pytest.raises(ValueError, match="limit must be an integer"):
