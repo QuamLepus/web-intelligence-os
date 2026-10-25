@@ -308,6 +308,13 @@ class RuntimeAuditLedger:
                     # The prechecked length keeps this scan strictly bounded.
                     existing_records = self._decode_records(
                         pipe.lrange(records_key, 0, -1))
+                    if len(existing_records) != current_length:
+                        # Resolve a read race before deciding that the list is corrupt.
+                        pipe.multi()
+                        pipe.ping()
+                        pipe.execute()
+                        raise AuditLedgerError(
+                            "cannot append to an invalid audit ledger")
                     if not self._verify_snapshot(tenant_id, existing_records, head):
                         # The two watched reads can straddle a concurrent commit.
                         # Commit a harmless command to force WATCH validation; if
