@@ -3,8 +3,10 @@ import base64
 import hashlib
 import json
 from datetime import UTC, datetime, timedelta, tzinfo
+from unittest.mock import patch
 
 import pytest
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from pydantic import ValidationError
@@ -580,6 +582,13 @@ def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
 
     test_keys = {"review-key-1": _trusted_key(public_pem)}
     assert verify_attestation_signature(signed, test_keys, now=NOW)
+    with patch(
+        "src.agent_marketplace.runtime_contract.serialization.load_pem_public_key",
+        side_effect=UnsupportedAlgorithm("unsupported public key algorithm"),
+    ):
+        assert not verify_attestation_signature(signed, test_keys, now=NOW)
+        assert not verify_backend_readiness(
+            _ready(), _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW)
 
     class TrustedKeyMap(dict):
         pass

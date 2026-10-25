@@ -15,7 +15,7 @@ from enum import StrEnum
 from zoneinfo import ZoneInfo
 from typing import Literal
 
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from pydantic_core import TzInfo
@@ -253,7 +253,7 @@ def verify_attestation_signature(
         signature = base64.b64decode(
             encoded + b"=" * (-len(encoded) % 4), altchars=b"-_", validate=True)
         public_key.verify(signature, attestation_signing_payload(attestation))
-    except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature):
+    except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature, UnsupportedAlgorithm):
         return False
     return True
 
@@ -514,7 +514,7 @@ def _verify_readiness_signer(
             + b"=" * (-len(signature_text) % 4),
             altchars=b"-_", validate=True)
         public_key.verify(signature, payload)
-    except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature):
+    except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature, UnsupportedAlgorithm):
         return False
     return True
 
@@ -552,7 +552,7 @@ def _artifact_key_is_distinct_from_readiness_roles(
             public_keys.append(key.public_bytes(
                 serialization.Encoding.DER,
                 serialization.PublicFormat.SubjectPublicKeyInfo))
-    except (ValueError, TypeError, UnicodeEncodeError):
+    except (ValueError, TypeError, UnicodeEncodeError, UnsupportedAlgorithm):
         return False
     return len(set(public_keys)) == len(public_keys)
 
@@ -611,7 +611,7 @@ def verify_backend_readiness(
                     serialization.Encoding.DER,
                     serialization.PublicFormat.SubjectPublicKeyInfo)):
             return False
-    except (ValueError, TypeError, UnicodeEncodeError):
+    except (ValueError, TypeError, UnicodeEncodeError, UnsupportedAlgorithm):
         return False
     operator_ok = _verify_readiness_signer(
         operator_key, key_id=readiness.key_id,
