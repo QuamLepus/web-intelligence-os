@@ -71,7 +71,8 @@ MAX_AUDIT_SEQUENCE = (1 << 63) - 1
 
 def _parse_canonical_sequence(value: object, *, minimum: int = 0) -> int:
     """Parse a Redis sequence only in its canonical unsigned-decimal form."""
-    if (not isinstance(value, str) or not value.isascii() or not value.isdecimal()
+    if (type(value) is not str or not value or len(value) > 19
+            or not value.isascii() or not value.isdecimal()
             or (len(value) > 1 and value.startswith("0"))):
         raise ValueError("audit head sequence is not canonical")
     sequence = int(value)

@@ -21,6 +21,7 @@ from src.agent_marketplace.audit_ledger import (
     AuditLedgerError,
     RuntimeAuditLedger,
     _checkpoint_payload,
+    _parse_canonical_sequence,
     _record_hash,
 )
 from src.agent_marketplace.runtime_contract import (
@@ -147,6 +148,21 @@ def test_audit_tenant_ids_reject_invalid_utf8_text():
         RuntimeAuditLedger._keys(TenantId("tenant-a"))
     assert not RuntimeAuditLedger._verify_snapshot(
         TenantId("tenant-a"), [], {})
+
+
+def test_audit_sequence_parser_bounds_text_and_rejects_subclasses():
+    maximum = (1 << 63) - 1
+    assert _parse_canonical_sequence(str(maximum)) == maximum
+    for value in ("1" * 20, "9" * 20, "", "01"):
+        with pytest.raises(ValueError):
+            _parse_canonical_sequence(value)
+
+    class HostileSequenceText(str):
+        def isascii(self):
+            raise AssertionError("string subclass callbacks must not run")
+
+    with pytest.raises(ValueError):
+        _parse_canonical_sequence(HostileSequenceText("1"))
 
 
 def test_snapshot_verifier_rejects_container_subclasses():
