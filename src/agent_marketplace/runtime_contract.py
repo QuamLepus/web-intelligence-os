@@ -193,6 +193,11 @@ def verify_attestation_signature(
             or type(trusted_keys) is not dict
             or any(type(key_id) is not str for key_id in trusted_keys)):
         return False
+    try:
+        attestation = ArtifactAttestation.model_validate(
+            attestation.model_dump(mode="python"))
+    except (AttributeError, TypeError, ValueError, ValidationError, RecursionError):
+        return False
     key = trusted_keys.get(attestation.key_id)
     if (type(key) is not TrustedAttestationKey or key.key_id != attestation.key_id
             or key.signer_id != attestation.signer_id):
@@ -242,6 +247,11 @@ def verify_artifact_bytes(
     if (type(attestation) is not ArtifactAttestation
             or type(artifact_bytes) is not bytes
             or type(maximum_bytes) is not int or maximum_bytes < 0):
+        return False
+    try:
+        attestation = ArtifactAttestation.model_validate(
+            attestation.model_dump(mode="python"))
+    except (AttributeError, TypeError, ValueError, ValidationError, RecursionError):
         return False
     if len(artifact_bytes) > maximum_bytes:
         return False
@@ -390,6 +400,11 @@ def verify_backend_evidence(
             or type(maximum_total_bytes) is not int or maximum_total_bytes < 0
             or type(maximum_age_seconds) is not int or maximum_age_seconds < 1):
         return False
+    try:
+        readiness = BackendReadiness.model_validate(
+            readiness.model_dump(mode="python"))
+    except (AttributeError, TypeError, ValueError, ValidationError, RecursionError):
+        return False
     if type(readiness.backend) is not RuntimeBackend:
         return False
     conformance = readiness.conformance_evidence
@@ -529,6 +544,11 @@ def verify_backend_readiness(
             or type(trusted_assessor_keys) is not dict
             or any(type(key_id) is not str for key_id in trusted_keys)
             or any(type(key_id) is not str for key_id in trusted_assessor_keys)):
+        return False
+    try:
+        readiness = BackendReadiness.model_validate(
+            readiness.model_dump(mode="python"))
+    except (AttributeError, TypeError, ValueError, ValidationError, RecursionError):
         return False
     current_time = _normalized_utc_now(now)
     if current_time is None:

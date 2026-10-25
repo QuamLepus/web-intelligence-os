@@ -510,6 +510,12 @@ def test_verifiers_fail_closed_on_invalid_now_argument_types():
     subclass_readiness = ReadinessSubclass.model_validate(readiness.model_dump())
     assert not verify_backend_readiness(
         subclass_readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW)
+    bypassed_validation = readiness.model_copy(update={"generation": True})
+    assert not verify_backend_readiness(
+        bypassed_validation, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW)
+    assert not verify_backend_evidence(
+        bypassed_validation, _evidence_for(readiness.backend),
+        _source_evidence_for(readiness.backend), now=NOW)
     assert not verify_backend_evidence(
         subclass_readiness, _evidence_for(readiness.backend),
         _source_evidence_for(readiness.backend), now=NOW)
@@ -567,6 +573,10 @@ def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
     assert not verify_attestation_signature(signed, {}, now=NOW)
     assert not verify_attestation_signature(
         signed.model_copy(update={"sha256": "b" * 64}), test_keys, now=NOW)
+    malformed_attestation = signed.model_copy(update={"sha256": "not-a-digest"})
+    assert not verify_attestation_signature(
+        malformed_attestation, test_keys, now=NOW)
+    assert not verify_artifact_bytes(malformed_attestation, ARTIFACT_BYTES)
     assert not verify_attestation_signature(
         signed.model_copy(update={"signature": "not-base64%%%"}),
         test_keys, now=NOW)
