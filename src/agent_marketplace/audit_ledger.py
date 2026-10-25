@@ -203,6 +203,7 @@ class RuntimeAuditLedger:
     KEY_PREFIX = "wcp:v1:agent_runtime:audit"
     ZERO_HASH = "0" * 64
     MAX_RECORD_BYTES = 16_384
+    MAX_APPEND_SCAN_EVENTS = 5000
 
     def __init__(
         self,
@@ -296,8 +297,14 @@ class RuntimeAuditLedger:
                     # concurrent appends or out-of-band record mutation.
                     pipe.watch(head_key, records_key)
                     head = self._text_mapping(pipe.hgetall(head_key))
+                    current_length = pipe.llen(records_key)
+                    if (type(current_length) is not int or current_length < 0
+                            or current_length > max(
+                                self.max_events, self.MAX_APPEND_SCAN_EVENTS)):
+                        raise AuditLedgerError(
+                            "cannot append to an invalid audit ledger")
                     # Event IDs are idempotency keys within the retained window.
-                    # The window is bounded by max_events, so this scan is bounded.
+                    # The prechecked length keeps this scan strictly bounded.
                     existing_records = self._decode_records(
                         pipe.lrange(records_key, 0, -1))
                     if not self._verify_snapshot(tenant_id, existing_records, head):
@@ -325,7 +332,6 @@ class RuntimeAuditLedger:
                         event_hash=_record_hash(sequence, previous_hash, event_data),
                         event=event,
                     )
-                    current_length = pipe.llen(records_key)
                     trim_count = max(0, current_length + 1 - self.max_events)
                     raw_evicted = (pipe.lrange(records_key, 0, trim_count - 1)
                                    if trim_count else [])

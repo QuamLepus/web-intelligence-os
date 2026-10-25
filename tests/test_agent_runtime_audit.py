@@ -670,6 +670,17 @@ def test_legacy_unanchored_ledger_can_be_verified_and_upgraded_on_append():
     assert ledger.verify("tenant-a")
 
 
+def test_append_rejects_record_lists_over_the_retention_bound():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client, max_events=2)
+    records_key, _ = ledger._keys("tenant-a")
+    redis_client.rpush(records_key, *(["oversized"] * 5001))
+
+    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+        ledger.append("tenant-a", _event())
+    assert redis_client.llen(records_key) == 5001
+
+
 def test_retention_limit_can_be_reduced_without_breaking_chain():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     larger = _ledger(redis_client, max_events=10)
