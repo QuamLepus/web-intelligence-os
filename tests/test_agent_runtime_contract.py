@@ -277,8 +277,24 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
         assert not verify_backend_readiness(
             readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW,
             maximum_validity_seconds=60)
+        source_evidence = _source_evidence_for(backend)
         assert verify_backend_evidence(
-            readiness, evidence, _source_evidence_for(backend), now=NOW)
+            readiness, evidence, source_evidence, now=NOW)
+
+        class HostileBytes(bytes):
+            def __len__(self):
+                raise RuntimeError("hostile length")
+
+        first_gate = next(iter(evidence))
+        hostile_report = dict(evidence)
+        hostile_report[first_gate] = HostileBytes(hostile_report[first_gate])
+        assert not verify_backend_evidence(
+            readiness, hostile_report, source_evidence, now=NOW)
+        hostile_source = dict(source_evidence)
+        hostile_source[first_gate] = HostileBytes(hostile_source[first_gate])
+        assert not verify_backend_evidence(
+            readiness, evidence, hostile_source, now=NOW)
+
         tampered = dict(evidence)
         first_gate = next(iter(tampered))
         tampered[first_gate] += b"tampered"
@@ -538,10 +554,15 @@ def test_artifact_bytes_are_bounded_and_match_signed_digest():
     artifact = b"minimal inert wasm artifact fixture"
     attestation = _attestation(sha256=hashlib.sha256(artifact).hexdigest())
 
+    class HostileBytes(bytes):
+        def __len__(self):
+            raise RuntimeError("hostile length")
+
     assert verify_artifact_bytes(attestation, artifact)
     assert not verify_artifact_bytes(attestation, artifact + b"tampered")
     assert not verify_artifact_bytes(attestation, artifact, maximum_bytes=4)
     assert not verify_artifact_bytes(attestation, bytearray(artifact))
+    assert not verify_artifact_bytes(attestation, HostileBytes(artifact))
 
 
 def test_policy_limits_reject_boolean_integer_coercion():
