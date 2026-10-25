@@ -400,6 +400,16 @@ class RuntimeAuditLedger:
             return False
         validated_events = []
         for record in records:
+            if (type(record.sequence) is not int or record.sequence < 0
+                    or type(record.previous_hash) is not str
+                    or len(record.previous_hash) != 64
+                    or any(char not in "0123456789abcdef"
+                           for char in record.previous_hash)
+                    or type(record.event_hash) is not str
+                    or len(record.event_hash) != 64
+                    or any(char not in "0123456789abcdef"
+                           for char in record.event_hash)):
+                return False
             try:
                 validated_events.append(RuntimeAuditEvent.model_validate(
                     record.event.model_dump(mode="python")))

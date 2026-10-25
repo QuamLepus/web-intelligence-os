@@ -128,6 +128,19 @@ def test_snapshot_verifier_rejects_non_audit_record_values():
         "tenant-a", [object()], {})
 
 
+@pytest.mark.parametrize(("sequence", "previous_hash"), [
+    (True, "0" * 64),
+    (1, 7),
+    (1, "A" * 64),
+])
+def test_snapshot_verifier_rejects_malformed_record_fields(sequence, previous_hash):
+    record = AuditRecord(
+        sequence=sequence, previous_hash=previous_hash, event_hash="0" * 64,
+        event=_event())
+
+    assert not RuntimeAuditLedger._verify_snapshot("tenant-a", [record], {})
+
+
 def test_snapshot_verifier_revalidates_copied_audit_events():
     malformed_event = _event().model_copy(update={"tenant_id": 44})
     zero_hash = "0" * 64
