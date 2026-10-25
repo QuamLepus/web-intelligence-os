@@ -754,7 +754,7 @@ class AdmissionDecision(StrictContract):
     ]
     backend: RuntimeBackend
     artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    policy_revision: str
+    policy_revision: str = Field(min_length=1, max_length=80)
 
     @field_validator("backend", mode="before")
     @classmethod
