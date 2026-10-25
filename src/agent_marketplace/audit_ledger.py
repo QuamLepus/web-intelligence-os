@@ -191,7 +191,7 @@ class RuntimeAuditLedger:
 
     @staticmethod
     def _validated_tenant_id(tenant_id: object) -> str:
-        if not isinstance(tenant_id, str) or not tenant_id:
+        if type(tenant_id) is not str or not tenant_id:
             raise AuditLedgerError("tenant ID must be a nonempty string")
         return tenant_id
 
@@ -520,7 +520,7 @@ class RuntimeAuditLedger:
                      or (checkpoint.first_sequence == 1
                          and checkpoint.first_previous_hash != zero_hash))):
             return False
-        if not isinstance(tenant_id, str) or not tenant_id:
+        if type(tenant_id) is not str or not tenant_id:
             return False
         expected_tenant = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
         if (checkpoint.signature_algorithm != "ed25519"

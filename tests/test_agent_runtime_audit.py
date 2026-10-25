@@ -64,6 +64,16 @@ def test_audit_tenant_ids_are_not_coerced_from_non_strings():
     assert not ledger.verify(123)
     assert ledger.verify("123")
 
+    class TenantId(str):
+        def encode(self, *args, **kwargs):
+            raise AssertionError("string subclasses must not be treated as tenant IDs")
+
+    with pytest.raises(AuditLedgerError, match="tenant must match"):
+        ledger.append(TenantId("tenant-a"), _event())
+    with pytest.raises(AuditLedgerError, match="nonempty string"):
+        ledger.read(TenantId("tenant-a"))
+    assert not ledger.verify(TenantId("tenant-a"))
+
 
 def test_append_rejects_non_contract_objects_without_coercion():
     ledger = _ledger()
