@@ -737,7 +737,24 @@ def decide_admission(
     must match its signed digest. This does not retrieve or persist artifact
     bytes, launch a sandbox, or prove a backend is secure.
     """
+    if type(request) is not AdmissionRequest:
+        raise ValueError("invalid admission request contract")
+    try:
+        request = AdmissionRequest.model_validate(request.model_dump(mode="python"))
+    except (AttributeError, TypeError, ValueError, ValidationError, RecursionError) as exc:
+        raise ValueError("invalid admission request contract") from exc
+
     readiness = backend_readiness
+    if readiness is not None:
+        if type(readiness) is not BackendReadiness:
+            readiness = None
+        else:
+            try:
+                readiness = BackendReadiness.model_validate(
+                    readiness.model_dump(mode="python"))
+            except (AttributeError, TypeError, ValueError, ValidationError,
+                    RecursionError):
+                readiness = None
     policy_revision = readiness.policy_revision if readiness else "unavailable"
     base = {"backend": request.backend, "artifact_sha256": request.sha256,
             "policy_revision": policy_revision}
