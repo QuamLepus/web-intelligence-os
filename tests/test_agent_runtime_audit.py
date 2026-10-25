@@ -3,7 +3,7 @@ import base64
 import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta, tzinfo
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
 from itertools import pairwise
 from unittest.mock import patch
 
@@ -220,6 +220,17 @@ def test_audit_ledger_rejects_events_with_far_future_timestamps():
 
     with pytest.raises(AuditLedgerError, match="timestamp is too far in the future"):
         ledger.append("tenant-a", future_event)
+    assert ledger.verify("tenant-a")
+
+
+def test_audit_ledger_normalizes_timestamp_utc_overflow():
+    ledger = _ledger()
+    boundary_event = _event().model_copy(update={
+        "occurred_at": datetime(1, 1, 1, tzinfo=timezone(timedelta(hours=23, minutes=59))),
+    })
+
+    with pytest.raises(AuditLedgerError, match="cannot be normalized to UTC"):
+        ledger.append("tenant-a", boundary_event)
     assert ledger.verify("tenant-a")
 
 

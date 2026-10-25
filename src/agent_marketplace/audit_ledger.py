@@ -259,7 +259,10 @@ class RuntimeAuditLedger:
             raise AuditLedgerError("event tenant must match ledger tenant") from exc
         if event.tenant_id != tenant_id:
             raise AuditLedgerError("event tenant must match ledger tenant")
-        occurred_at = event.occurred_at.astimezone(UTC)
+        try:
+            occurred_at = event.occurred_at.astimezone(UTC)
+        except (OverflowError, ValueError) as exc:
+            raise AuditLedgerError("event timestamp cannot be normalized to UTC") from exc
         if occurred_at > datetime.now(UTC) + self.maximum_future_skew:
             raise AuditLedgerError("event timestamp is too far in the future")
         records_key, head_key = self._keys(tenant_id)
