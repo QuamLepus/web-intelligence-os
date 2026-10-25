@@ -114,6 +114,16 @@ def test_audit_tenant_ids_are_not_coerced_from_non_strings():
     assert not ledger.verify(123)
     assert ledger.verify("123")
 
+
+def test_audit_tenant_ids_are_length_bounded():
+    oversized_tenant = "t" * (RuntimeAuditLedger.MAX_TENANT_ID_LENGTH + 1)
+    ledger = _ledger()
+    with pytest.raises(AuditLedgerError, match="at most 128"):
+        ledger.read(oversized_tenant)
+    with pytest.raises(AuditLedgerError, match="at most 128"):
+        RuntimeAuditLedger._keys(oversized_tenant)
+    assert not ledger.verify(oversized_tenant)
+
     class TenantId(str):
         def encode(self, *args, **kwargs):
             raise AssertionError("string subclasses must not be treated as tenant IDs")

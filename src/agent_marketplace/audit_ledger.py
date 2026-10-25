@@ -205,6 +205,7 @@ class RuntimeAuditLedger:
     MAX_RECORD_BYTES = 16_384
     MAX_APPEND_SCAN_EVENTS = 5000
     MAX_HEAD_TEXT_LENGTH = 64
+    MAX_TENANT_ID_LENGTH = 128
 
     def __init__(
         self,
@@ -231,16 +232,20 @@ class RuntimeAuditLedger:
     @classmethod
     def _keys(cls, tenant_id: str) -> tuple[str, str]:
         # The tenant key is a digest, so raw tenant identifiers never enter Redis keys.
-        if type(tenant_id) is not str or not tenant_id:
-            raise AuditLedgerError("tenant ID must be a nonempty built-in string")
+        if (type(tenant_id) is not str or not tenant_id
+                or len(tenant_id) > cls.MAX_TENANT_ID_LENGTH):
+            raise AuditLedgerError(
+                "tenant ID must be a nonempty built-in string of at most 128 characters")
         tenant_hash = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
         return (f"{cls.KEY_PREFIX}:{tenant_hash}:records",
                 f"{cls.KEY_PREFIX}:{tenant_hash}:head")
 
-    @staticmethod
-    def _validated_tenant_id(tenant_id: object) -> str:
-        if type(tenant_id) is not str or not tenant_id:
-            raise AuditLedgerError("tenant ID must be a nonempty string")
+    @classmethod
+    def _validated_tenant_id(cls, tenant_id: object) -> str:
+        if (type(tenant_id) is not str or not tenant_id
+                or len(tenant_id) > cls.MAX_TENANT_ID_LENGTH):
+            raise AuditLedgerError(
+                "tenant ID must be a nonempty string of at most 128 characters")
         return tenant_id
 
     @staticmethod
@@ -678,7 +683,8 @@ class RuntimeAuditLedger:
                      or (checkpoint.first_sequence == 1
                          and checkpoint.first_previous_hash != zero_hash))):
             return False
-        if type(tenant_id) is not str or not tenant_id:
+        if (type(tenant_id) is not str or not tenant_id
+                or len(tenant_id) > RuntimeAuditLedger.MAX_TENANT_ID_LENGTH):
             return False
         expected_tenant = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
         if (checkpoint.signature_algorithm != "ed25519"
