@@ -179,6 +179,8 @@ def test_snapshot_verifier_rejects_container_subclasses():
     assert not RuntimeAuditLedger._verify_snapshot(
         "tenant-a", [], UnsafeHead())
     assert not RuntimeAuditLedger._verify_snapshot(
+        "tenant-a", [], {f"extra-{index}": "x" for index in range(5)})
+    assert not RuntimeAuditLedger._verify_snapshot(
         "tenant-a", [None] * (RuntimeAuditLedger.MAX_APPEND_SCAN_EVENTS + 1), {})
     assert not RuntimeAuditLedger._verify_snapshot(
         "x" * (RuntimeAuditLedger.MAX_TENANT_ID_LENGTH + 1), [], {})
