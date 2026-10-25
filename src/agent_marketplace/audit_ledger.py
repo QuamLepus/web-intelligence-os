@@ -200,11 +200,11 @@ class RuntimeAuditLedger:
 
     @staticmethod
     def _text(value: Any) -> str:
-        if isinstance(value, bytes):
+        if type(value) is bytes:
             return value.decode("utf-8")
-        if isinstance(value, str):
+        if type(value) is str:
             return value
-        raise TypeError("Redis audit values must be bytes or strings")
+        raise TypeError("Redis audit values must be built-in bytes or strings")
 
     @classmethod
     def _text_mapping(cls, value: dict[Any, Any]) -> dict[str, str]:
@@ -327,7 +327,7 @@ class RuntimeAuditLedger:
         records = []
         for raw in raw_records:
             try:
-                if (isinstance(raw, (bytes, str))
+                if (type(raw) in (bytes, str)
                         and len(raw) > self.MAX_RECORD_BYTES):
                     raise ValueError("audit record exceeds the byte limit")
                 raw_text = self._text(raw)

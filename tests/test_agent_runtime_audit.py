@@ -49,6 +49,15 @@ def test_audit_ledger_limits_require_exact_integer_types():
         RuntimeAuditLedger(redis_client, maximum_future_skew_seconds=True)
 
 
+def test_audit_redis_values_reject_string_subclasses():
+    class UnsafeRedisText(str):
+        def encode(self, *args, **kwargs):
+            raise AssertionError("string subclass override must not run")
+
+    with pytest.raises(TypeError, match="built-in bytes or strings"):
+        RuntimeAuditLedger._text(UnsafeRedisText("{}"))
+
+
 def test_audit_read_limit_rejects_boolean_coercion():
     ledger = _ledger()
     with pytest.raises(ValueError, match="limit must be an integer"):
