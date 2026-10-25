@@ -10,13 +10,15 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from enum import StrEnum
+from zoneinfo import ZoneInfo
 from typing import Literal
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from pydantic_core import TzInfo
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -27,9 +29,16 @@ from pydantic import (
 )
 
 
+def _has_builtin_timezone(value: datetime) -> bool:
+    """Avoid invoking caller-defined tzinfo methods at contract boundaries."""
+    return type(value.tzinfo) in (timezone, ZoneInfo, TzInfo)
+
+
 def _explicit_datetime_input(value: object) -> object:
     """Reject implicit Unix-epoch coercion; require an aware datetime/ISO value."""
     if type(value) is datetime:
+        if not _has_builtin_timezone(value):
+            raise ValueError("timestamp must use a standard-library timezone")
         return value
     if type(value) is str:
         try:
@@ -166,8 +175,8 @@ class ArtifactAttestation(StrictContract):
 def _normalized_utc_now(now: datetime | None) -> datetime | None:
     if now is None:
         return datetime.now(UTC)
-    if (type(now) is not datetime
-            or now.tzinfo is None or now.utcoffset() is None):
+    if (type(now) is not datetime or not _has_builtin_timezone(now)
+            or now.utcoffset() is None):
         return None
     return now.astimezone(UTC)
 

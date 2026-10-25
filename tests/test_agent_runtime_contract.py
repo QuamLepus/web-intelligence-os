@@ -2,7 +2,7 @@
 import base64
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -539,6 +539,16 @@ def test_verifiers_fail_closed_on_invalid_now_argument_types():
         signed, _TRUSTED_KEYS, now=hostile_now)
     assert not verify_backend_readiness(
         readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=hostile_now)
+
+    class HostileTimezone(tzinfo):
+        def utcoffset(self, dt):
+            raise AssertionError("caller-defined timezone callbacks must not run")
+
+    hostile_timezone_now = NOW.replace(tzinfo=HostileTimezone())
+    assert not verify_attestation_signature(
+        signed, _TRUSTED_KEYS, now=hostile_timezone_now)
+    with pytest.raises(ValidationError, match="standard-library timezone"):
+        _attestation(created_at=hostile_timezone_now)
 
 
 def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
