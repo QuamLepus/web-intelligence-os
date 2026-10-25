@@ -220,6 +220,13 @@ def test_audit_head_rejects_noncanonical_sequence_encoding():
         redis_client.hset(head_key, field, original)
     assert ledger.verify("tenant-a")
 
+    # Extra or partially populated head metadata must not be ignored.
+    redis_client.hset(head_key, "unexpected", "value")
+    assert not ledger.verify("tenant-a")
+    redis_client.hdel(head_key, "unexpected")
+    redis_client.hdel(head_key, "first_previous_hash")
+    assert not ledger.verify("tenant-a")
+
 
 def test_audit_record_decoder_rejects_duplicate_json_keys():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
