@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
@@ -568,6 +568,7 @@ class RuntimeAuditLedger:
             if canonical_signature != checkpoint.signature:
                 return False
             public_key.verify(signature, _checkpoint_payload(checkpoint))
-        except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature):
+        except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature,
+                UnsupportedAlgorithm):
             return False
         return True

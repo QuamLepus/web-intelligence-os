@@ -193,7 +193,8 @@ heads are accepted only when both anchor fields are absent. Tenant identifiers
 must be nonempty strings at ledger boundaries; non-string values are never
 coerced into tenant keys. Redis head fields must decode as unique UTF-8 text;
 malformed or ambiguous decoded fields fail closed. Signed checkpoint signatures
-must use canonical unpadded URL-safe Base64. Append and checkpoint-verification
+must use canonical unpadded URL-safe Base64. Unsupported cryptographic key
+algorithms fail closed during verification. Append and checkpoint-verification
 boundaries accept the contract model types directly and revalidate events,
 checkpoints, and trusted-key records from serialized field values so unchecked
 model-copy updates or arbitrary model-like objects cannot bypass contracts. The ledger does not export or persist checkpoints itself. It is not
