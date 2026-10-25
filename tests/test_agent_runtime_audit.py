@@ -672,6 +672,17 @@ def test_legacy_unanchored_ledger_can_be_verified_and_upgraded_on_append():
     assert ledger.verify("tenant-a")
 
 
+def test_append_rejects_record_snapshot_length_mismatches(monkeypatch):
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client, max_events=2)
+    records_key, _ = ledger._keys("tenant-a")
+    redis_client.rpush(records_key, "opaque-record")
+    monkeypatch.setattr(ledger, "_decode_records", lambda raw: [])
+
+    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+        ledger.append("tenant-a", _event())
+
+
 def test_append_rejects_record_lists_over_the_retention_bound():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client, max_events=2)
