@@ -334,13 +334,24 @@ class RuntimeAuditLedger:
                 if len(raw_text.encode("utf-8")) > self.MAX_RECORD_BYTES:
                     raise ValueError("audit record exceeds the byte limit")
                 value = json.loads(raw_text, object_pairs_hook=_unique_json_object)
+                if type(value) is not dict:
+                    raise ValueError("audit record must be an object")
                 sequence = value["sequence"]
                 if type(sequence) is not int or sequence < 0:
                     raise ValueError("audit record sequence must be a nonnegative integer")
+                previous_hash = value["previous_hash"]
+                event_hash = value["event_hash"]
+                if (type(previous_hash) is not str
+                        or len(previous_hash) != 64
+                        or any(char not in "0123456789abcdef" for char in previous_hash)
+                        or type(event_hash) is not str
+                        or len(event_hash) != 64
+                        or any(char not in "0123456789abcdef" for char in event_hash)):
+                    raise ValueError("audit record hashes must be lowercase SHA-256 digests")
                 record = AuditRecord(
                     sequence=sequence,
-                    previous_hash=value["previous_hash"],
-                    event_hash=value["event_hash"],
+                    previous_hash=previous_hash,
+                    event_hash=event_hash,
                     event=RuntimeAuditEvent.model_validate(value["event"]),
                 )
                 if record.to_json() != raw_text:
