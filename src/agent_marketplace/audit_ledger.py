@@ -146,7 +146,7 @@ def _validated_checkpoint(checkpoint: object) -> AuditCheckpoint | None:
     try:
         data = checkpoint.model_dump(mode="python")
         return AuditCheckpoint.model_validate(data)
-    except (AttributeError, TypeError, ValueError, ValidationError):
+    except (AttributeError, TypeError, ValueError, ValidationError, RecursionError):
         return None
 
 
