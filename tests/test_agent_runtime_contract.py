@@ -413,6 +413,23 @@ def test_admission_rejects_backend_digest_and_version_mismatch_without_fallback(
     assert _decide(readiness=other_backend_ready).reason == "backend_not_provisioned"
 
 
+def test_admission_revalidates_request_and_readiness_contracts():
+    invalid_request = _request().model_copy(update={"input_bytes": True})
+    with pytest.raises(ValueError, match="invalid admission request contract"):
+        _decide(request=invalid_request)
+
+    class AdmissionRequestSubclass(AdmissionRequest):
+        pass
+
+    subclass_request = AdmissionRequestSubclass.model_validate(
+        _request().model_dump())
+    with pytest.raises(ValueError, match="invalid admission request contract"):
+        _decide(request=subclass_request)
+
+    invalid_readiness = _ready().model_copy(update={"generation": True})
+    assert _decide(readiness=invalid_readiness).reason == "backend_not_provisioned"
+
+
 def test_admission_enforces_resource_bounds():
     request = _request(input_bytes=512, deadline_seconds=30)
     result = decide_admission(
