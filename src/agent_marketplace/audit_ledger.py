@@ -188,6 +188,12 @@ class RuntimeAuditLedger:
                 f"{cls.KEY_PREFIX}:{tenant_hash}:head")
 
     @staticmethod
+    def _validated_tenant_id(tenant_id: object) -> str:
+        if not isinstance(tenant_id, str) or not tenant_id:
+            raise AuditLedgerError("tenant ID must be a nonempty string")
+        return tenant_id
+
+    @staticmethod
     def _text(value: Any) -> str:
         return value.decode("utf-8") if isinstance(value, bytes) else str(value)
 
@@ -201,8 +207,11 @@ class RuntimeAuditLedger:
                 event.model_dump(mode="python"))
         except (AttributeError, TypeError, ValueError, ValidationError) as exc:
             raise AuditLedgerError("invalid audit event contract") from exc
-        tenant_id = str(tenant_id)
-        if not tenant_id or event.tenant_id != tenant_id:
+        try:
+            tenant_id = self._validated_tenant_id(tenant_id)
+        except AuditLedgerError as exc:
+            raise AuditLedgerError("event tenant must match ledger tenant") from exc
+        if event.tenant_id != tenant_id:
             raise AuditLedgerError("event tenant must match ledger tenant")
         occurred_at = event.occurred_at.astimezone(UTC)
         if occurred_at > datetime.now(UTC) + self.maximum_future_skew:
@@ -317,7 +326,7 @@ class RuntimeAuditLedger:
         limit = min(100, self.max_events) if limit is None else limit
         if type(limit) is not int or not 1 <= limit <= self.max_events:
             raise ValueError("limit must be an integer between 1 and max_events_per_tenant")
-        tenant_id = str(tenant_id)
+        tenant_id = self._validated_tenant_id(tenant_id)
         try:
             records, head = self._snapshot(tenant_id)
         except AuditLedgerError as exc:
@@ -327,7 +336,7 @@ class RuntimeAuditLedger:
         return records[-limit:]
 
     def _snapshot(self, tenant_id: str) -> tuple[list[AuditRecord], dict[str, str]]:
-        records_key, head_key = self._keys(str(tenant_id))
+        records_key, head_key = self._keys(tenant_id)
         with self.r.pipeline(transaction=True) as pipe:
             pipe.lrange(records_key, -self.max_events, -1)
             pipe.hgetall(head_key)
@@ -362,7 +371,7 @@ class RuntimeAuditLedger:
         for record in records:
             event_data = _canonical_event(record.event)
             if (record.sequence != prior_sequence + 1
-                    or record.event.tenant_id != str(tenant_id)
+                    or record.event.tenant_id != tenant_id
                     or record.previous_hash != previous
                     or record.event_hash != _record_hash(
                         record.sequence, record.previous_hash, event_data)):
@@ -379,10 +388,11 @@ class RuntimeAuditLedger:
     def verify(self, tenant_id: str) -> bool:
         """Verify the retained chain and its head; an empty ledger is valid."""
         try:
-            records, head = self._snapshot(str(tenant_id))
-        except AuditLedgerError:
+            tenant_id = self._validated_tenant_id(tenant_id)
+            records, head = self._snapshot(tenant_id)
+        except (AuditLedgerError, TypeError):
             return False
-        return self._verify_snapshot(str(tenant_id), records, head)
+        return self._verify_snapshot(tenant_id, records, head)
 
     def create_checkpoint(
         self,
@@ -401,9 +411,7 @@ class RuntimeAuditLedger:
         """
         if not isinstance(private_key, Ed25519PrivateKey):
             raise AuditLedgerError("checkpoint signing requires an Ed25519 private key")
-        tenant_id = str(tenant_id)
-        if not tenant_id:
-            raise AuditLedgerError("tenant ID is required for a checkpoint")
+        tenant_id = self._validated_tenant_id(tenant_id)
         try:
             records, head = self._snapshot(tenant_id)
         except AuditLedgerError as exc:
@@ -444,7 +452,10 @@ class RuntimeAuditLedger:
         checkpoint = _validated_checkpoint(checkpoint)
         if checkpoint is None:
             return False
-        tenant_id = str(tenant_id)
+        try:
+            tenant_id = self._validated_tenant_id(tenant_id)
+        except AuditLedgerError:
+            return False
         tenant_hash = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
         if (checkpoint.tenant_sha256 != tenant_hash
                 or not self.verify_checkpoint(
@@ -491,7 +502,9 @@ class RuntimeAuditLedger:
                      or (checkpoint.first_sequence == 1
                          and checkpoint.first_previous_hash != zero_hash))):
             return False
-        expected_tenant = hashlib.sha256(str(tenant_id).encode("utf-8")).hexdigest()
+        if not isinstance(tenant_id, str) or not tenant_id:
+            return False
+        expected_tenant = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
         if (checkpoint.signature_algorithm != "ed25519"
                 or checkpoint.tenant_sha256 != expected_tenant):
             return False

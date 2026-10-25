@@ -53,6 +53,16 @@ def test_audit_read_limit_rejects_boolean_coercion():
         ledger.read("tenant-a", limit=True)
 
 
+def test_audit_tenant_ids_are_not_coerced_from_non_strings():
+    ledger = _ledger()
+    with pytest.raises(AuditLedgerError, match="tenant must match"):
+        ledger.append(123, _event())
+    with pytest.raises(AuditLedgerError, match="nonempty string"):
+        ledger.read(123)
+    assert not ledger.verify(123)
+    assert ledger.verify("123")
+
+
 def test_append_revalidates_runtime_events_copied_with_invalid_updates():
     ledger = _ledger()
     malformed = _event().model_copy(update={
