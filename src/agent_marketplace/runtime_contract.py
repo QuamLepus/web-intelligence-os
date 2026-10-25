@@ -77,6 +77,13 @@ class TrustedAttestationKey(StrictContract):
     expires_at: datetime
     revoked_at: datetime | None = None
 
+    @field_validator("key_id", "signer_id", "public_key_pem", mode="before")
+    @classmethod
+    def _text_fields_are_builtin(cls, value: object) -> object:
+        if type(value) is not str:
+            raise ValueError("trusted-key text fields must be built-in strings")
+        return value
+
     @field_validator("valid_from", "expires_at", "revoked_at", mode="before")
     @classmethod
     def _timestamp_input_explicit(cls, value: object) -> object:
