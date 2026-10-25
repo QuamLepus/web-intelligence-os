@@ -112,6 +112,16 @@ class TrustedAttestationKey(StrictContract):
         return value
 
 
+def _validated_trusted_key(key: object) -> TrustedAttestationKey | None:
+    """Revalidate trusted-key records because model_copy(update=...) skips checks."""
+    if type(key) is not TrustedAttestationKey:
+        return None
+    try:
+        return TrustedAttestationKey.model_validate(key.model_dump(mode="python"))
+    except (AttributeError, TypeError, ValueError, ValidationError, RecursionError):
+        return None
+
+
 class ArtifactAttestation(StrictContract):
     """Claim binding an immutable artifact to its review/provenance record.
 
@@ -205,8 +215,8 @@ def verify_attestation_signature(
             attestation.model_dump(mode="python"))
     except (AttributeError, TypeError, ValueError, ValidationError, RecursionError):
         return False
-    key = trusted_keys.get(attestation.key_id)
-    if (type(key) is not TrustedAttestationKey or key.key_id != attestation.key_id
+    key = _validated_trusted_key(trusted_keys.get(attestation.key_id))
+    if (key is None or key.key_id != attestation.key_id
             or key.signer_id != attestation.signer_id):
         return False
     current_time = _normalized_utc_now(now)
@@ -478,8 +488,8 @@ def _verify_readiness_signer(
     expires_at: datetime,
     current_time: datetime,
 ) -> bool:
-    if (type(key) is not TrustedAttestationKey
-            or key.key_id != key_id or key.signer_id != signer_id
+    key = _validated_trusted_key(key)
+    if (key is None or key.key_id != key_id or key.signer_id != signer_id
             or issued_at < key.valid_from.astimezone(UTC)
             or issued_at >= key.expires_at.astimezone(UTC)
             or expires_at > key.expires_at.astimezone(UTC)
@@ -524,7 +534,8 @@ def _artifact_key_is_distinct_from_readiness_roles(
     public_keys = []
     try:
         for record in records:
-            if type(record) is not TrustedAttestationKey:
+            record = _validated_trusted_key(record)
+            if record is None:
                 return False
             key = serialization.load_pem_public_key(record.public_key_pem.encode("ascii"))
             if not isinstance(key, Ed25519PublicKey):
@@ -568,10 +579,10 @@ def verify_backend_readiness(
             or readiness.key_id == readiness.assessor_key_id
             or readiness.signer_id == readiness.assessor_id):
         return False
-    operator_key = trusted_keys.get(readiness.key_id)
-    assessor_key = trusted_assessor_keys.get(readiness.assessor_key_id)
-    if (type(operator_key) is not TrustedAttestationKey
-            or type(assessor_key) is not TrustedAttestationKey
+    operator_key = _validated_trusted_key(trusted_keys.get(readiness.key_id))
+    assessor_key = _validated_trusted_key(
+        trusted_assessor_keys.get(readiness.assessor_key_id))
+    if (operator_key is None or assessor_key is None
             or operator_key.key_id != readiness.key_id
             or operator_key.signer_id != readiness.signer_id
             or assessor_key.key_id != readiness.assessor_key_id

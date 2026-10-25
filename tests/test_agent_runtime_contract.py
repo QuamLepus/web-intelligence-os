@@ -282,6 +282,11 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
             readiness, TrustedKeyMap(_READINESS_KEYS), _ASSESSOR_KEYS, now=NOW)
         assert not verify_backend_readiness(
             readiness, _READINESS_KEYS, TrustedKeyMap(_ASSESSOR_KEYS), now=NOW)
+        mutated_operator_key = _READINESS_KEYS["readiness-key-1"].model_copy(
+            update={"expires_at": NOW})
+        assert not verify_backend_readiness(
+            readiness, {"readiness-key-1": mutated_operator_key},
+            _ASSESSOR_KEYS, now=NOW)
         assert not verify_backend_readiness(
             readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW,
             maximum_validity_seconds=60)
@@ -570,6 +575,10 @@ def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
     assert not verify_artifact_bytes(subclass_attestation, ARTIFACT_BYTES)
     assert not verify_attestation_signature(
         signed, {"review-key-1": subclass_key}, now=NOW)
+    mutated_key = test_keys["review-key-1"].model_copy(
+        update={"expires_at": NOW - timedelta(seconds=1)})
+    assert not verify_attestation_signature(
+        signed, {"review-key-1": mutated_key}, now=NOW)
     assert not verify_attestation_signature(signed, {}, now=NOW)
     assert not verify_attestation_signature(
         signed.model_copy(update={"sha256": "b" * 64}), test_keys, now=NOW)
