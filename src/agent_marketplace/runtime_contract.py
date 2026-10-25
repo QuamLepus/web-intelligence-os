@@ -70,6 +70,8 @@ class RuntimeBackend(StrEnum):
 MAX_TRUSTED_ATTESTATION_KEYS = 256
 MAX_READINESS_GENERATION = (1 << 63) - 1
 MAX_BACKEND_EVIDENCE_TOTAL_BYTES = 10 * 1024 * 1024
+MAX_BACKEND_EVIDENCE_AGE_SECONDS = 24 * 60 * 60
+MAX_BACKEND_READINESS_VALIDITY_SECONDS = 24 * 60 * 60
 
 
 BACKEND_REQUIRED_GATES: dict[RuntimeBackend, frozenset[str]] = {
@@ -502,7 +504,7 @@ def verify_backend_evidence(
     *,
     now: datetime | None = None,
     maximum_total_bytes: int = MAX_BACKEND_EVIDENCE_TOTAL_BYTES,
-    maximum_age_seconds: int = 24 * 60 * 60,
+    maximum_age_seconds: int = MAX_BACKEND_EVIDENCE_AGE_SECONDS,
 ) -> bool:
     """Verify signed reports, source bytes, backend/pool bindings, and freshness.
 
@@ -514,7 +516,8 @@ def verify_backend_evidence(
             or type(readiness.conformance_evidence) is not dict
             or type(maximum_total_bytes) is not int or not 0 <= maximum_total_bytes
             <= MAX_BACKEND_EVIDENCE_TOTAL_BYTES
-            or type(maximum_age_seconds) is not int or maximum_age_seconds < 1):
+            or type(maximum_age_seconds) is not int
+            or not 1 <= maximum_age_seconds <= MAX_BACKEND_EVIDENCE_AGE_SECONDS):
         return False
     try:
         readiness = BackendReadiness.model_validate(
@@ -663,7 +666,7 @@ def verify_backend_readiness(
     trusted_assessor_keys: Mapping[str, TrustedAttestationKey],
     *,
     now: datetime | None = None,
-    maximum_validity_seconds: int = 24 * 60 * 60,
+    maximum_validity_seconds: int = MAX_BACKEND_READINESS_VALIDITY_SECONDS,
 ) -> bool:
     """Verify independently assessed gate evidence and operator readiness."""
     if (type(readiness) is not BackendReadiness
@@ -688,7 +691,9 @@ def verify_backend_readiness(
     expires_at = _to_utc(readiness.expires_at)
     if issued_at is None or expires_at is None:
         return False
-    if (type(maximum_validity_seconds) is not int or maximum_validity_seconds < 1
+    if (type(maximum_validity_seconds) is not int
+            or not (1 <= maximum_validity_seconds
+                    <= MAX_BACKEND_READINESS_VALIDITY_SECONDS)
             or (expires_at - issued_at).total_seconds() > maximum_validity_seconds
             or issued_at > current_time or current_time >= expires_at
             or readiness.key_id == readiness.assessor_key_id

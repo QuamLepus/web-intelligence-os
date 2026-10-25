@@ -13,7 +13,9 @@ from pydantic import ValidationError
 
 from src.agent_marketplace.runtime_contract import (
     BACKEND_REQUIRED_GATES,
+    MAX_BACKEND_EVIDENCE_AGE_SECONDS,
     MAX_BACKEND_EVIDENCE_TOTAL_BYTES,
+    MAX_BACKEND_READINESS_VALIDITY_SECONDS,
     AdmissionDecision,
     AdmissionRequest,
     ArtifactAttestation,
@@ -302,9 +304,15 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
         assert not verify_backend_readiness(
             readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW,
             maximum_validity_seconds=60)
+        assert not verify_backend_readiness(
+            readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW,
+            maximum_validity_seconds=MAX_BACKEND_READINESS_VALIDITY_SECONDS + 1)
         source_evidence = _source_evidence_for(backend)
         assert verify_backend_evidence(
             readiness, evidence, source_evidence, now=NOW)
+        assert not verify_backend_evidence(
+            readiness, evidence, source_evidence, now=NOW,
+            maximum_age_seconds=MAX_BACKEND_EVIDENCE_AGE_SECONDS + 1)
         oversized_evidence = {
             f"extra-{index}": b""
             for index in range(len(BACKEND_REQUIRED_GATES[backend]) + 1)
@@ -359,7 +367,9 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
     with pytest.raises(ValidationError, match="backend gate limit"):
         _ready(conformance_evidence={
             f"untrusted-gate-{index}": "0" * 64
-            for index in range(len(BACKEND_REQUIRED_GATES[RuntimeBackend.WASM_WASI]) + 1)
+            for index in range(
+                len(BACKEND_REQUIRED_GATES[RuntimeBackend.WASM_WASI]) + 1
+            )
         })
 
 
