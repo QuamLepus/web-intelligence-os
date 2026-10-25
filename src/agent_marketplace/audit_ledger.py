@@ -206,6 +206,7 @@ class RuntimeAuditLedger:
     MAX_APPEND_SCAN_EVENTS = 5000
     MAX_HEAD_TEXT_LENGTH = 64
     MAX_TENANT_ID_LENGTH = 128
+    MAX_TRUSTED_CHECKPOINT_KEYS = 256
 
     def __init__(
         self,
@@ -702,7 +703,9 @@ class RuntimeAuditLedger:
                 or checkpoint.tenant_sha256 != expected_tenant):
             return False
         if (type(trusted_keys) is not dict
-                or any(type(key_id) is not str for key_id in trusted_keys)):
+                or len(trusted_keys) > RuntimeAuditLedger.MAX_TRUSTED_CHECKPOINT_KEYS
+                or any(type(key_id) is not str or not key_id or len(key_id) > 160
+                       for key_id in trusted_keys)):
             return False
         try:
             key = trusted_keys.get(checkpoint.key_id)

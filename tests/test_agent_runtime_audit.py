@@ -873,6 +873,15 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key}, now=now)
     assert RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
+    oversized_trusted_keys = {
+        f"unrelated-{index}": trusted_key
+        for index in range(RuntimeAuditLedger.MAX_TRUSTED_CHECKPOINT_KEYS + 1)
+    }
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint, tenant_id="tenant-a", trusted_keys=oversized_trusted_keys, now=now)
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint, tenant_id="tenant-a",
+        trusted_keys={"x" * 161: trusted_key}, now=now)
     assert not RuntimeAuditLedger.verify_checkpoint(
         checkpoint.model_copy(update={"created_at": overflowing_created_at}),
         tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
