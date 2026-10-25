@@ -255,6 +255,8 @@ class RuntimeAuditLedger:
         try:
             if type(value) is not dict:
                 raise TypeError("Redis audit heads must be built-in dictionaries")
+            if len(value) > 4:
+                raise ValueError("Redis audit head has too many fields")
             result: dict[str, str] = {}
             for key, item in value.items():
                 text_key = cls._text(key)
