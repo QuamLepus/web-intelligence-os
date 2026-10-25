@@ -165,7 +165,7 @@ def test_audit_decoder_rejects_noncanonical_hash_fields(field, value):
     redis_client.lset(records_key, 0, json.dumps(stored, sort_keys=True,
                                                   separators=(",", ":")))
 
-    with pytest.raises(AuditLedgerError, match="invalid audit record encoding"):
+    with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
         ledger.read("tenant-a")
     assert not ledger.verify("tenant-a")
 
