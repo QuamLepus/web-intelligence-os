@@ -79,6 +79,13 @@ BACKEND_REQUIRED_GATES: dict[RuntimeBackend, frozenset[str]] = {
 }
 
 
+def _runtime_backend_input_is_builtin(value: object) -> object:
+    """Allow enum instances or exact strings, never caller-defined string subclasses."""
+    if type(value) not in (RuntimeBackend, str):
+        raise ValueError("backend must be a RuntimeBackend or built-in string")
+    return value
+
+
 class StrictContract(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -148,6 +155,11 @@ class ArtifactAttestation(StrictContract):
     signature_algorithm: Literal["ed25519"]
     signature: str = Field(min_length=1, max_length=256)
     created_at: datetime
+
+    @field_validator("backend", mode="before")
+    @classmethod
+    def _backend_input_is_builtin(cls, value: object) -> object:
+        return _runtime_backend_input_is_builtin(value)
 
     @field_validator(
         "agent_id", "version", "sha256", "provenance_id", "signer_id", "key_id",
@@ -296,6 +308,11 @@ class BackendGateEvidence(StrictContract):
     test_run_id: str = Field(min_length=1, max_length=160)
     report_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
+    @field_validator("backend", mode="before")
+    @classmethod
+    def _backend_input_is_builtin(cls, value: object) -> object:
+        return _runtime_backend_input_is_builtin(value)
+
     @field_validator(
         "gate_id", "environment_id", "policy_revision", "result", "test_run_id",
         "report_sha256", mode="before",
@@ -342,6 +359,11 @@ class BackendReadiness(StrictContract):
     assessor_signature: str = Field(min_length=1, max_length=256)
     signature_algorithm: Literal["ed25519"] = "ed25519"
     signature: str = Field(min_length=1, max_length=256)
+
+    @field_validator("backend", mode="before")
+    @classmethod
+    def _backend_input_is_builtin(cls, value: object) -> object:
+        return _runtime_backend_input_is_builtin(value)
 
     @field_validator(
         "environment_id", "policy_revision", "signer_id", "key_id", "assessor_id",
@@ -659,6 +681,11 @@ class AdmissionRequest(StrictContract):
     input_bytes: int = Field(ge=0, le=1_048_576, strict=True)
     deadline_seconds: int = Field(ge=1, le=3600, strict=True)
 
+    @field_validator("backend", mode="before")
+    @classmethod
+    def _backend_input_is_builtin(cls, value: object) -> object:
+        return _runtime_backend_input_is_builtin(value)
+
     @field_validator(
         "run_id", "tenant_id", "agent_id", "version", "backend_environment_id",
         "sha256", mode="before",
@@ -682,6 +709,11 @@ class AdmissionDecision(StrictContract):
     backend: RuntimeBackend
     artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     policy_revision: str
+
+    @field_validator("backend", mode="before")
+    @classmethod
+    def _backend_input_is_builtin(cls, value: object) -> object:
+        return _runtime_backend_input_is_builtin(value)
 
     @field_validator("reason", "artifact_sha256", "policy_revision", mode="before")
     @classmethod
@@ -712,6 +744,11 @@ class RuntimeAuditEvent(StrictContract):
     artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     policy_revision: str = Field(min_length=1, max_length=80)
     reason_code: str = Field(min_length=1, max_length=80)
+
+    @field_validator("backend", mode="before")
+    @classmethod
+    def _backend_input_is_builtin(cls, value: object) -> object:
+        return _runtime_backend_input_is_builtin(value)
 
     @field_validator(
         "event_id", "event_type", "run_id", "tenant_id", "agent_id", "version",

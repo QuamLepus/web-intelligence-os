@@ -507,6 +507,34 @@ def test_admission_enforces_resource_bounds():
         _request(deadline_seconds=3601)
 
 
+def test_contract_backend_fields_reject_string_subclasses():
+    class HostileText(str):
+        pass
+
+    contracts = [
+        _attestation(), _ready(), _request(),
+        AdmissionDecision(
+            admitted=True, reason="admitted", backend=RuntimeBackend.WASM_WASI,
+            artifact_sha256=DIGEST, policy_revision="policy-v1"),
+        BackendGateEvidence(
+            gate_id="runtime_version_pinned", backend=RuntimeBackend.WASM_WASI,
+            environment_id="pool-test-a", policy_revision="policy-v1",
+            result="passed", tested_at=NOW, test_run_id="test-1",
+            report_sha256=DIGEST),
+        RuntimeAuditEvent(
+            event_id="evt-backend", occurred_at=NOW,
+            event_type="admission_denied", tenant_id="tenant-1",
+            agent_id="agent-1", version="1.0.0",
+            backend=RuntimeBackend.WASM_WASI, artifact_sha256=DIGEST,
+            policy_revision="policy-v1", reason_code="denied"),
+    ]
+    for contract in contracts:
+        data = contract.model_dump(mode="python")
+        data["backend"] = HostileText(contract.backend.value)
+        with pytest.raises(ValidationError, match="RuntimeBackend or built-in string"):
+            type(contract)(**data)
+
+
 def test_trusted_key_rejects_string_subclasses():
     class HostileText(str):
         def encode(self, *args, **kwargs):
