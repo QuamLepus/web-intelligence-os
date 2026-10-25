@@ -372,7 +372,7 @@ class RuntimeAuditLedger:
         tenant_id = self._validated_tenant_id(tenant_id)
         try:
             records, head = self._snapshot(tenant_id)
-        except AuditLedgerError as exc:
+        except (AuditLedgerError, RedisError) as exc:
             raise AuditLedgerError("cannot read an invalid audit ledger") from exc
         if not self._verify_snapshot(tenant_id, records, head):
             raise AuditLedgerError("cannot read an invalid audit ledger")
