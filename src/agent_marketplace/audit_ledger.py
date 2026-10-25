@@ -165,6 +165,7 @@ class RuntimeAuditLedger:
 
     KEY_PREFIX = "wcp:v1:agent_runtime:audit"
     ZERO_HASH = "0" * 64
+    MAX_RECORD_BYTES = 16_384
 
     def __init__(
         self,
@@ -323,7 +324,12 @@ class RuntimeAuditLedger:
         records = []
         for raw in raw_records:
             try:
+                if (isinstance(raw, (bytes, str))
+                        and len(raw) > self.MAX_RECORD_BYTES):
+                    raise ValueError("audit record exceeds the byte limit")
                 raw_text = self._text(raw)
+                if len(raw_text.encode("utf-8")) > self.MAX_RECORD_BYTES:
+                    raise ValueError("audit record exceeds the byte limit")
                 value = json.loads(raw_text, object_pairs_hook=_unique_json_object)
                 sequence = value["sequence"]
                 if type(sequence) is not int or sequence < 0:
