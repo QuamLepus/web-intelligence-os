@@ -260,6 +260,21 @@ def test_append_normalizes_redis_pipeline_creation_failures(monkeypatch):
         ledger.append("tenant-a", _event())
 
 
+def test_append_normalizes_redis_pipeline_context_failures(monkeypatch):
+    ledger = _ledger()
+
+    class FailedPipeline:
+        def __enter__(self):
+            raise RedisError("pipeline context is unavailable")
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(ledger.r, "pipeline", lambda *args, **kwargs: FailedPipeline())
+    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+        ledger.append("tenant-a", _event())
+
+
 def test_append_normalizes_redis_operation_failures(monkeypatch):
     ledger = _ledger()
 
