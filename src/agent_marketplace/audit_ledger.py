@@ -209,6 +209,8 @@ class RuntimeAuditLedger:
     @classmethod
     def _text_mapping(cls, value: dict[Any, Any]) -> dict[str, str]:
         try:
+            if type(value) is not dict:
+                raise TypeError("Redis audit heads must be built-in dictionaries")
             result: dict[str, str] = {}
             for key, item in value.items():
                 text_key = cls._text(key)
