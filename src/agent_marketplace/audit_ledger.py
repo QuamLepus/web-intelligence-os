@@ -261,8 +261,11 @@ class RuntimeAuditLedger:
         for raw in raw_records:
             try:
                 value = json.loads(self._text(raw))
+                sequence = value["sequence"]
+                if type(sequence) is not int or sequence < 0:
+                    raise ValueError("audit record sequence must be a nonnegative integer")
                 records.append(AuditRecord(
-                    sequence=int(value["sequence"]),
+                    sequence=sequence,
                     previous_hash=value["previous_hash"],
                     event_hash=value["event_hash"],
                     event=RuntimeAuditEvent.model_validate(value["event"]),
