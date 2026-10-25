@@ -151,6 +151,25 @@ def test_audit_ledger_keeps_bounded_window_and_verifies_chain_head():
         ledger.read("tenant-a", limit=3)
 
 
+@pytest.mark.parametrize("field,value", [
+    ("previous_hash", 7),
+    ("event_hash", "A" * 64),
+])
+def test_audit_decoder_rejects_noncanonical_hash_fields(field, value):
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client)
+    ledger.append("tenant-a", _event())
+    records_key, _ = ledger._keys("tenant-a")
+    stored = json.loads(redis_client.lindex(records_key, 0))
+    stored[field] = value
+    redis_client.lset(records_key, 0, json.dumps(stored, sort_keys=True,
+                                                  separators=(",", ":")))
+
+    with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
+        ledger.read("tenant-a")
+    assert not ledger.verify("tenant-a")
+
+
 def test_audit_ledger_detects_record_tampering_and_head_mismatch():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client)
