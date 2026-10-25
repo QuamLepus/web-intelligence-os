@@ -189,8 +189,10 @@ def verify_attestation_signature(
     malformed signatures, future/stale payload timestamps, or a nonpositive age
     bound fail closed. The default attestation age is 90 days.
     """
+    if type(attestation) is not ArtifactAttestation:
+        return False
     key = trusted_keys.get(attestation.key_id)
-    if (key is None or key.key_id != attestation.key_id
+    if (type(key) is not TrustedAttestationKey or key.key_id != attestation.key_id
             or key.signer_id != attestation.signer_id):
         return False
     current_time = _normalized_utc_now(now)
@@ -235,7 +237,8 @@ def verify_artifact_bytes(
     quarantine scanning, or immutability. Callers must enforce those controls
     around byte acquisition and retention.
     """
-    if (type(artifact_bytes) is not bytes
+    if (type(attestation) is not ArtifactAttestation
+            or type(artifact_bytes) is not bytes
             or type(maximum_bytes) is not int or maximum_bytes < 0):
         return False
     if len(artifact_bytes) > maximum_bytes:
@@ -451,7 +454,8 @@ def _verify_readiness_signer(
     expires_at: datetime,
     current_time: datetime,
 ) -> bool:
-    if (key is None or key.key_id != key_id or key.signer_id != signer_id
+    if (type(key) is not TrustedAttestationKey
+            or key.key_id != key_id or key.signer_id != signer_id
             or issued_at < key.valid_from.astimezone(UTC)
             or issued_at >= key.expires_at.astimezone(UTC)
             or expires_at > key.expires_at.astimezone(UTC)
@@ -491,7 +495,7 @@ def _artifact_key_is_distinct_from_readiness_roles(
     public_keys = []
     try:
         for record in records:
-            if record is None:
+            if type(record) is not TrustedAttestationKey:
                 return False
             key = serialization.load_pem_public_key(record.public_key_pem.encode("ascii"))
             if not isinstance(key, Ed25519PublicKey):
@@ -513,6 +517,8 @@ def verify_backend_readiness(
     maximum_validity_seconds: int = 24 * 60 * 60,
 ) -> bool:
     """Verify independently assessed gate evidence and operator readiness."""
+    if type(readiness) is not BackendReadiness:
+        return False
     current_time = _normalized_utc_now(now)
     if current_time is None:
         return False
@@ -526,7 +532,8 @@ def verify_backend_readiness(
         return False
     operator_key = trusted_keys.get(readiness.key_id)
     assessor_key = trusted_assessor_keys.get(readiness.assessor_key_id)
-    if (operator_key is None or assessor_key is None
+    if (type(operator_key) is not TrustedAttestationKey
+            or type(assessor_key) is not TrustedAttestationKey
             or operator_key.key_id != readiness.key_id
             or operator_key.signer_id != readiness.signer_id
             or assessor_key.key_id != readiness.assessor_key_id
