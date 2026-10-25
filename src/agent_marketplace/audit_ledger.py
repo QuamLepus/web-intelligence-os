@@ -185,6 +185,8 @@ class RuntimeAuditLedger:
     @classmethod
     def _keys(cls, tenant_id: str) -> tuple[str, str]:
         # The tenant key is a digest, so raw tenant identifiers never enter Redis keys.
+        if type(tenant_id) is not str or not tenant_id:
+            raise AuditLedgerError("tenant ID must be a nonempty built-in string")
         tenant_hash = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
         return (f"{cls.KEY_PREFIX}:{tenant_hash}:records",
                 f"{cls.KEY_PREFIX}:{tenant_hash}:head")
@@ -363,6 +365,8 @@ class RuntimeAuditLedger:
     @staticmethod
     def _verify_snapshot(tenant_id: str, records: list[AuditRecord],
                          head: dict[str, str]) -> bool:
+        if type(tenant_id) is not str or not tenant_id:
+            return False
         if not records:
             return not head
         # Accept legacy heads only when both retention-anchor fields are absent;
