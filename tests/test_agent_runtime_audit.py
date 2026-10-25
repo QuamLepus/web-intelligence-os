@@ -123,6 +123,22 @@ def test_snapshot_verifier_rejects_container_subclasses():
         "tenant-a", [], UnsafeHead())
 
 
+def test_snapshot_verifier_rejects_non_builtin_head_fields():
+    class UnsafeText(str):
+        __hash__ = str.__hash__
+
+        def __eq__(self, other):
+            raise AssertionError("string subclass equality must not run")
+
+    head_with_subclass_key = {UnsafeText("sequence"): "1"}
+    head_with_subclass_value = {"sequence": UnsafeText("1")}
+
+    assert not RuntimeAuditLedger._verify_snapshot(
+        "tenant-a", [], head_with_subclass_key)
+    assert not RuntimeAuditLedger._verify_snapshot(
+        "tenant-a", [], head_with_subclass_value)
+
+
 def test_snapshot_verifier_rejects_non_audit_record_values():
     assert not RuntimeAuditLedger._verify_snapshot(
         "tenant-a", [object()], {})

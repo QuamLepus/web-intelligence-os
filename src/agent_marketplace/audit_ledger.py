@@ -392,6 +392,9 @@ class RuntimeAuditLedger:
         if (type(tenant_id) is not str or not tenant_id
                 or type(records) is not list or type(head) is not dict):
             return False
+        if any(type(key) is not str or type(value) is not str
+               for key, value in head.items()):
+            return False
         if not records:
             return not head
         if any(type(record) is not AuditRecord
