@@ -273,6 +273,18 @@ def test_audit_head_rejects_noncanonical_sequence_encoding():
     assert not ledger.verify("tenant-a")
 
 
+def test_audit_record_decoder_rejects_excessive_json_nesting():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client)
+    ledger.append("tenant-a", _event())
+    records_key, _ = ledger._keys("tenant-a")
+    redis_client.lset(records_key, 0, "[" * 2000 + "0" + "]" * 2000)
+
+    assert not ledger.verify("tenant-a")
+    with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
+        ledger.read("tenant-a")
+
+
 def test_audit_record_decoder_rejects_duplicate_json_keys():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client)
