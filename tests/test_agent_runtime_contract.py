@@ -495,6 +495,16 @@ def test_verifiers_fail_closed_on_invalid_now_argument_types():
     assert not verify_attestation_signature(signed, _TRUSTED_KEYS, now=True)
     assert not verify_backend_readiness(
         readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=True)
+
+    class ReadinessSubclass(BackendReadiness):
+        pass
+
+    subclass_readiness = ReadinessSubclass.model_validate(readiness.model_dump())
+    assert not verify_backend_readiness(
+        subclass_readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW)
+    assert not verify_backend_evidence(
+        subclass_readiness, _evidence_for(readiness.backend),
+        _source_evidence_for(readiness.backend), now=NOW)
     assert not verify_backend_evidence(
         readiness, _evidence_for(readiness.backend),
         _source_evidence_for(readiness.backend), now=True)
@@ -524,6 +534,22 @@ def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
 
     test_keys = {"review-key-1": _trusted_key(public_pem)}
     assert verify_attestation_signature(signed, test_keys, now=NOW)
+
+    class AttestationSubclass(ArtifactAttestation):
+        pass
+
+    class TrustedKeySubclass(TrustedAttestationKey):
+        pass
+
+    subclass_attestation = AttestationSubclass.model_validate(
+        signed.model_dump())
+    subclass_key = TrustedKeySubclass.model_validate(
+        test_keys["review-key-1"].model_dump())
+    assert not verify_attestation_signature(
+        subclass_attestation, test_keys, now=NOW)
+    assert not verify_artifact_bytes(subclass_attestation, ARTIFACT_BYTES)
+    assert not verify_attestation_signature(
+        signed, {"review-key-1": subclass_key}, now=NOW)
     assert not verify_attestation_signature(signed, {}, now=NOW)
     assert not verify_attestation_signature(
         signed.model_copy(update={"sha256": "b" * 64}), test_keys, now=NOW)
