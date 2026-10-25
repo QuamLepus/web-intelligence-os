@@ -356,6 +356,11 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
     with pytest.raises(ValidationError, match="unknown backend gates"):
         _ready(conformance_evidence={
             "microvm_vm_per_run": hashlib.sha256(b"vm").hexdigest()})
+    with pytest.raises(ValidationError, match="backend gate limit"):
+        _ready(conformance_evidence={
+            f"untrusted-gate-{index}": "0" * 64
+            for index in range(len(BACKEND_REQUIRED_GATES[RuntimeBackend.WASM_WASI]) + 1)
+        })
 
 
 def test_readiness_conformance_evidence_rejects_non_builtin_containers_and_strings():
