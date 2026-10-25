@@ -308,8 +308,11 @@ class RuntimeAuditLedger:
                             expected_previous_hash = old_record.event_hash
                         first_sequence = expected_sequence
                         first_previous_hash = expected_previous_hash
+                    serialized_record = record.to_json()
+                    if len(serialized_record.encode("utf-8")) > self.MAX_RECORD_BYTES:
+                        raise AuditLedgerError("audit record exceeds the byte limit")
                     pipe.multi()
-                    pipe.rpush(records_key, record.to_json())
+                    pipe.rpush(records_key, serialized_record)
                     pipe.ltrim(records_key, -self.max_events, -1)
                     pipe.hset(head_key, mapping={
                         "sequence": sequence, "event_hash": record.event_hash,
