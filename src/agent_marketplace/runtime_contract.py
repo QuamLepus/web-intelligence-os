@@ -34,6 +34,14 @@ def _has_builtin_timezone(value: datetime) -> bool:
     return type(value.tzinfo) in (timezone, ZoneInfo, TzInfo)
 
 
+def _tenant_id_is_valid_utf8(value: str) -> str:
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("tenant ID must be valid UTF-8 text") from exc
+    return value
+
+
 def _explicit_datetime_input(value: object) -> object:
     """Reject implicit Unix-epoch coercion; require an aware datetime/ISO value."""
     if type(value) is datetime:
@@ -709,6 +717,11 @@ class AdmissionRequest(StrictContract):
             raise ValueError("admission request text fields must be built-in strings")
         return value
 
+    @field_validator("tenant_id")
+    @classmethod
+    def _tenant_id_utf8(cls, value: str) -> str:
+        return _tenant_id_is_valid_utf8(value)
+
 
 class AdmissionDecision(StrictContract):
     admitted: bool = Field(strict=True)
@@ -774,6 +787,11 @@ class RuntimeAuditEvent(StrictContract):
         if type(value) is not str:
             raise ValueError("audit event text fields must be built-in strings")
         return value
+
+    @field_validator("tenant_id")
+    @classmethod
+    def _tenant_id_utf8(cls, value: str) -> str:
+        return _tenant_id_is_valid_utf8(value)
 
     @field_validator("occurred_at", mode="before")
     @classmethod
