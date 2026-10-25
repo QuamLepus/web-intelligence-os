@@ -457,12 +457,18 @@ class RuntimeAuditLedger:
     def _snapshot(self, tenant_id: str) -> tuple[list[AuditRecord], dict[str, str]]:
         records_key, head_key = self._keys(tenant_id)
         with self.r.pipeline(transaction=True) as pipe:
-            pipe.lrange(records_key, -self.max_events, -1)
+            pipe.llen(records_key)
+            pipe.lrange(records_key, -self.MAX_APPEND_SCAN_EVENTS, -1)
             pipe.hgetall(head_key)
             response = pipe.execute()
-        if type(response) is not list or len(response) != 2:
+        if type(response) is not list or len(response) != 3:
             raise AuditLedgerError("invalid audit snapshot response")
-        raw_records, raw_head = response
+        record_count, raw_records, raw_head = response
+        if (type(record_count) is not int
+                or not 0 <= record_count <= self.MAX_APPEND_SCAN_EVENTS
+                or type(raw_records) is not list
+                or len(raw_records) != record_count):
+            raise AuditLedgerError("invalid audit snapshot response")
         return self._decode_records(raw_records), self._text_mapping(raw_head)
 
     @staticmethod
