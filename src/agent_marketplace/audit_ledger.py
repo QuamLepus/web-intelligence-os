@@ -389,7 +389,8 @@ class RuntimeAuditLedger:
     @staticmethod
     def _verify_snapshot(tenant_id: str, records: list[AuditRecord],
                          head: dict[str, str]) -> bool:
-        if type(tenant_id) is not str or not tenant_id:
+        if (type(tenant_id) is not str or not tenant_id
+                or type(records) is not list or type(head) is not dict):
             return False
         if not records:
             return not head
