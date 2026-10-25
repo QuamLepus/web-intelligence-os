@@ -518,6 +518,11 @@ def verify_backend_evidence(
         return False
     if type(readiness.backend) is not RuntimeBackend:
         return False
+    maximum_gate_count = len(BACKEND_REQUIRED_GATES[readiness.backend])
+    if (len(evidence) > maximum_gate_count
+            or len(source_evidence) > maximum_gate_count
+            or len(readiness.conformance_evidence) > maximum_gate_count):
+        return False
     conformance = readiness.conformance_evidence
     if any(type(gate) is not str or type(digest) is not str
            for gate, digest in conformance.items()):
