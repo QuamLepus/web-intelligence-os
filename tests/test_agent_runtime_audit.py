@@ -432,6 +432,9 @@ def test_snapshot_rejects_malformed_transaction_responses(monkeypatch):
         def __exit__(self, *args):
             return False
 
+        def llen(self, *args):
+            return self
+
         def lrange(self, *args):
             return self
 
@@ -659,6 +662,19 @@ def test_audit_record_decoder_rejects_duplicate_json_keys():
     # A permissive decoder would use the final sequence key and recover the
     # original record, hiding the duplicate-key mutation from chain checks.
     redis_client.lset(records_key, 0, '{"sequence":false,' + original[1:])
+    assert not ledger.verify("tenant-a")
+    with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
+        ledger.read("tenant-a")
+
+
+def test_snapshot_verification_does_not_ignore_records_before_the_retained_window():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client, max_events=3)
+    for index in range(3):
+        ledger.append("tenant-a", _event(suffix=f"prefix-check-{index}"))
+    records_key, _ = ledger._keys("tenant-a")
+    redis_client.lpush(records_key, "unexpected-prefix-record")
+
     assert not ledger.verify("tenant-a")
     with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
         ledger.read("tenant-a")
