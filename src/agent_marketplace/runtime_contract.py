@@ -132,7 +132,7 @@ class ArtifactAttestation(StrictContract):
 def _normalized_utc_now(now: datetime | None) -> datetime | None:
     if now is None:
         return datetime.now(UTC)
-    if (not isinstance(now, datetime)
+    if (type(now) is not datetime
             or now.tzinfo is None or now.utcoffset() is None):
         return None
     return now.astimezone(UTC)

@@ -435,6 +435,18 @@ def test_verifiers_fail_closed_on_invalid_now_argument_types():
         readiness, _evidence_for(readiness.backend),
         _source_evidence_for(readiness.backend), now=True)
 
+    class HostileDateTime(datetime):
+        def utcoffset(self):
+            raise AssertionError("datetime subclass callbacks must not run")
+
+    hostile_now = HostileDateTime(
+        NOW.year, NOW.month, NOW.day, NOW.hour, NOW.minute, NOW.second,
+        NOW.microsecond, tzinfo=UTC)
+    assert not verify_attestation_signature(
+        signed, _TRUSTED_KEYS, now=hostile_now)
+    assert not verify_backend_readiness(
+        readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=hostile_now)
+
 
 def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
     private_key = Ed25519PrivateKey.generate()
