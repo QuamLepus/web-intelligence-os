@@ -16,6 +16,7 @@ from src.agent_marketplace.runtime_contract import (
     MAX_BACKEND_EVIDENCE_AGE_SECONDS,
     MAX_BACKEND_EVIDENCE_TOTAL_BYTES,
     MAX_BACKEND_READINESS_VALIDITY_SECONDS,
+    MAX_VERIFIED_ARTIFACT_BYTES,
     AdmissionDecision,
     AdmissionRequest,
     ArtifactAttestation,
@@ -849,6 +850,8 @@ def test_artifact_bytes_are_bounded_and_match_signed_digest():
     assert verify_artifact_bytes(attestation, artifact)
     assert not verify_artifact_bytes(attestation, artifact + b"tampered")
     assert not verify_artifact_bytes(attestation, artifact, maximum_bytes=4)
+    assert not verify_artifact_bytes(
+        attestation, artifact, maximum_bytes=MAX_VERIFIED_ARTIFACT_BYTES + 1)
     assert not verify_artifact_bytes(attestation, bytearray(artifact))
     assert not verify_artifact_bytes(attestation, HostileBytes(artifact))
 
