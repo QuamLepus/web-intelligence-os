@@ -183,8 +183,10 @@ checkpoint can be exported to a separately protected immutable store, and
 signature; `matches_checkpoint` requires trusted-key records and verifies the
 checkpoint's retained-window anchor consistency, strict integer counters, signature,
 tenant binding, signer/key lifecycle, and current Redis head before reporting a match. Stored
-audit-record sequences are also validated as actual nonnegative JSON integers;
-coercible booleans, floats, and strings fail verification. The ledger does not export or persist checkpoints itself. It is not
+audit records must use the exact canonical JSON encoding emitted by the
+ledger; duplicate keys and noncanonical representations are rejected. Their
+sequences must be actual nonnegative JSON integers, so coercible booleans,
+floats, and strings fail verification. The ledger does not export or persist checkpoints itself. It is not
 wired into runtime paths; Redis operators can rewrite both records and heads,
 so without an externally retained checkpoint it is not immutable, tamper-proof,
 or externally anchored. Retention keeps the latest configured window and the

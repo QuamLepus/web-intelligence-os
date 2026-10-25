@@ -53,6 +53,16 @@ def _canonical_event(event: RuntimeAuditEvent) -> dict[str, Any]:
     return event.model_dump(mode="json")
 
 
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Parse a JSON object while rejecting ambiguous duplicate keys."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object key")
+        result[key] = value
+    return result
+
+
 def _record_hash(sequence: int, previous_hash: str,
                  event_data: dict[str, Any]) -> str:
     payload = json.dumps({
@@ -260,16 +270,20 @@ class RuntimeAuditLedger:
         records = []
         for raw in raw_records:
             try:
-                value = json.loads(self._text(raw))
+                raw_text = self._text(raw)
+                value = json.loads(raw_text, object_pairs_hook=_unique_json_object)
                 sequence = value["sequence"]
                 if type(sequence) is not int or sequence < 0:
                     raise ValueError("audit record sequence must be a nonnegative integer")
-                records.append(AuditRecord(
+                record = AuditRecord(
                     sequence=sequence,
                     previous_hash=value["previous_hash"],
                     event_hash=value["event_hash"],
                     event=RuntimeAuditEvent.model_validate(value["event"]),
-                ))
+                )
+                if record.to_json() != raw_text:
+                    raise ValueError("audit record encoding is not canonical")
+                records.append(record)
             except (KeyError, TypeError, ValueError) as exc:
                 raise AuditLedgerError("invalid audit record encoding") from exc
         return records
