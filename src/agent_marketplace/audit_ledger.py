@@ -339,6 +339,13 @@ class RuntimeAuditLedger:
                          head: dict[str, str]) -> bool:
         if not records:
             return not head
+        # Accept legacy heads only when both retention-anchor fields are absent;
+        # unknown or partially populated fields must not be silently ignored.
+        if (set(head) - {"sequence", "event_hash", "first_sequence",
+                         "first_previous_hash"}
+                or ("first_sequence" in head)
+                != ("first_previous_hash" in head)):
+            return False
         try:
             first_sequence = (
                 _parse_canonical_sequence(head["first_sequence"], minimum=1)
