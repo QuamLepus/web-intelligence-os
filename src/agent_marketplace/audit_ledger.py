@@ -236,7 +236,11 @@ class RuntimeAuditLedger:
                 or len(tenant_id) > cls.MAX_TENANT_ID_LENGTH):
             raise AuditLedgerError(
                 "tenant ID must be a nonempty built-in string of at most 128 characters")
-        tenant_hash = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
+        try:
+            tenant_bytes = tenant_id.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise AuditLedgerError("tenant ID must be valid UTF-8 text") from exc
+        tenant_hash = hashlib.sha256(tenant_bytes).hexdigest()
         return (f"{cls.KEY_PREFIX}:{tenant_hash}:records",
                 f"{cls.KEY_PREFIX}:{tenant_hash}:head")
 
@@ -246,6 +250,10 @@ class RuntimeAuditLedger:
                 or len(tenant_id) > cls.MAX_TENANT_ID_LENGTH):
             raise AuditLedgerError(
                 "tenant ID must be a nonempty string of at most 128 characters")
+        try:
+            tenant_id.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise AuditLedgerError("tenant ID must be valid UTF-8 text") from exc
         return tenant_id
 
     @staticmethod
@@ -686,7 +694,10 @@ class RuntimeAuditLedger:
         if (type(tenant_id) is not str or not tenant_id
                 or len(tenant_id) > RuntimeAuditLedger.MAX_TENANT_ID_LENGTH):
             return False
-        expected_tenant = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
+        try:
+            expected_tenant = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
+        except UnicodeEncodeError:
+            return False
         if (checkpoint.signature_algorithm != "ed25519"
                 or checkpoint.tenant_sha256 != expected_tenant):
             return False

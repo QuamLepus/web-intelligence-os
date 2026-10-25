@@ -124,6 +124,16 @@ def test_audit_tenant_ids_are_length_bounded():
         RuntimeAuditLedger._keys(oversized_tenant)
     assert not ledger.verify(oversized_tenant)
 
+
+def test_audit_tenant_ids_reject_invalid_utf8_text():
+    invalid_tenant = "tenant-\ud800"
+    ledger = _ledger()
+    with pytest.raises(AuditLedgerError, match="valid UTF-8"):
+        ledger.read(invalid_tenant)
+    with pytest.raises(AuditLedgerError, match="valid UTF-8"):
+        RuntimeAuditLedger._keys(invalid_tenant)
+    assert not ledger.verify(invalid_tenant)
+
     class TenantId(str):
         def encode(self, *args, **kwargs):
             raise AssertionError("string subclasses must not be treated as tenant IDs")
