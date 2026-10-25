@@ -337,6 +337,34 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
             "microvm_vm_per_run": hashlib.sha256(b"vm").hexdigest()})
 
 
+def test_readiness_conformance_evidence_rejects_non_builtin_containers_and_strings():
+    class EvidenceDict(dict):
+        pass
+
+    class HostileText(str):
+        pass
+
+    base = _ready().model_dump(mode="python")
+    with pytest.raises(ValidationError, match="built-in dictionary"):
+        BackendReadiness(**{
+            **base, "conformance_evidence": EvidenceDict(base["conformance_evidence"]),
+        })
+    hostile_key = HostileText(next(iter(base["conformance_evidence"])))
+    with pytest.raises(ValidationError, match="built-in strings"):
+        BackendReadiness(**{
+            **base, "conformance_evidence": {
+                hostile_key: next(iter(base["conformance_evidence"].values())),
+            },
+        })
+    hostile_digest = HostileText(next(iter(base["conformance_evidence"].values())))
+    with pytest.raises(ValidationError, match="built-in strings"):
+        BackendReadiness(**{
+            **base, "conformance_evidence": {
+                next(iter(base["conformance_evidence"])): hostile_digest,
+            },
+        })
+
+
 def test_admission_requires_all_pins_review_and_backend_gates():
     assert _decide(attestation=_attestation(), readiness=_ready()).admitted
     assert _decide(approved=False).reason == "artifact_not_approved"

@@ -343,6 +343,16 @@ class BackendReadiness(StrictContract):
     signature_algorithm: Literal["ed25519"] = "ed25519"
     signature: str = Field(min_length=1, max_length=256)
 
+    @field_validator("conformance_evidence", mode="before")
+    @classmethod
+    def _conformance_evidence_is_builtin_mapping(cls, value: object) -> object:
+        if type(value) is not dict:
+            raise ValueError("conformance evidence must be a built-in dictionary")
+        if any(type(gate) is not str or type(digest) is not str
+               for gate, digest in value.items()):
+            raise ValueError("conformance evidence keys and digests must be built-in strings")
+        return value
+
     @field_validator("conformance_evidence")
     @classmethod
     def _gate_evidence_is_backend_scoped(
