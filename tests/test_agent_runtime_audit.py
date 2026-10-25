@@ -560,6 +560,15 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     trusted_keys = {"audit-key-1": trusted_key}
     assert checkpoint.sequence == 3
     checkpoint_data = checkpoint.model_dump()
+
+    class HostileCheckpointText(str):
+        def encode(self, *args, **kwargs):
+            raise AssertionError("checkpoint string subclass callbacks must not run")
+
+    with pytest.raises(ValidationError, match="built-in strings"):
+        AuditCheckpoint(**{
+            **checkpoint_data, "signature": HostileCheckpointText(checkpoint.signature),
+        })
     with pytest.raises(ValidationError, match="built-in datetime"):
         AuditCheckpoint(**{**checkpoint_data, "created_at": hostile_created_at})
 

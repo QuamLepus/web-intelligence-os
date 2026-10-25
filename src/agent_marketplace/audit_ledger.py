@@ -99,6 +99,16 @@ class AuditCheckpoint(StrictContract):
     signature_algorithm: Literal["ed25519"] = "ed25519"
     signature: str = Field(min_length=1, max_length=256)
 
+    @field_validator(
+        "tenant_sha256", "event_hash", "first_previous_hash", "signer_id",
+        "key_id", "signature_algorithm", "signature", mode="before",
+    )
+    @classmethod
+    def _checkpoint_text_is_builtin(cls, value: object) -> object:
+        if type(value) is not str:
+            raise ValueError("checkpoint text fields must be built-in strings")
+        return value
+
     @field_validator("created_at", mode="before")
     @classmethod
     def _timestamp_input_explicit(cls, value: object) -> object:
