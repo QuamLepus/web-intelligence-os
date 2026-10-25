@@ -408,6 +408,22 @@ def test_trusted_key_rejects_string_subclasses():
         })
 
 
+def test_backend_gate_evidence_rejects_string_subclasses():
+    class HostileText(str):
+        def __eq__(self, other):
+            raise AssertionError("gate-evidence string subclass equality must not run")
+
+    valid = BackendGateEvidence(
+        gate_id="runtime_version_pinned", backend=RuntimeBackend.WASM_WASI,
+        environment_id="pool-test-a", policy_revision="policy-v1",
+        result="passed", tested_at=NOW, test_run_id="test-1",
+        report_sha256="a" * 64)
+    with pytest.raises(ValidationError, match="built-in strings"):
+        BackendGateEvidence(**{
+            **valid.model_dump(), "result": HostileText("passed"),
+        })
+
+
 def test_artifact_attestation_rejects_string_subclasses():
     class HostileText(str):
         def encode(self, *args, **kwargs):
