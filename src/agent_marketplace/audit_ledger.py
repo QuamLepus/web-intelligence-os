@@ -431,9 +431,10 @@ class RuntimeAuditLedger:
             raise AuditLedgerError("cannot checkpoint an invalid audit ledger") from exc
         if not self._verify_snapshot(tenant_id, records, head):
             raise AuditLedgerError("cannot checkpoint an invalid audit ledger")
-        timestamp = created_at or datetime.now(UTC)
-        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-            raise AuditLedgerError("checkpoint timestamp must include a timezone")
+        timestamp = datetime.now(UTC) if created_at is None else created_at
+        if (not isinstance(timestamp, datetime)
+                or timestamp.tzinfo is None or timestamp.utcoffset() is None):
+            raise AuditLedgerError("checkpoint timestamp must be a timezone-aware datetime")
         checkpoint = AuditCheckpoint(
             tenant_sha256=hashlib.sha256(tenant_id.encode("utf-8")).hexdigest(),
             sequence=int(head.get("sequence", 0)),
