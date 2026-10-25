@@ -615,6 +615,13 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     assert not RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys={"audit-key-1": object()}, now=now)
 
+    class HostileKeyId(str):
+        pass
+
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint, tenant_id="tenant-a",
+        trusted_keys={HostileKeyId("audit-key-1"): trusted_key}, now=now)
+
     class HostileTrustedKeyMap(dict):
         def get(self, key, default=None):
             raise AssertionError("custom trusted-key map must not be queried")
