@@ -224,6 +224,20 @@ def test_audit_ledger_rejects_events_with_far_future_timestamps():
     assert ledger.verify("tenant-a")
 
 
+def test_audit_ledger_accepts_large_configured_future_skew_without_datetime_overflow():
+    ledger = RuntimeAuditLedger(
+        fakeredis.FakeStrictRedis(decode_responses=True),
+        maximum_future_skew_seconds=10**12)
+    assert ledger.append("tenant-a", _event()).sequence == 1
+
+
+def test_audit_ledger_rejects_future_skew_outside_timedelta_range():
+    with pytest.raises(ValueError, match="exceeds the supported range"):
+        RuntimeAuditLedger(
+            fakeredis.FakeStrictRedis(decode_responses=True),
+            maximum_future_skew_seconds=10**100)
+
+
 def test_audit_ledger_normalizes_timestamp_utc_overflow():
     ledger = _ledger()
     boundary_event = _event().model_copy(update={

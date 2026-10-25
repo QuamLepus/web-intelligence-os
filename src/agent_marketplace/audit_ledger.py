@@ -204,7 +204,11 @@ class RuntimeAuditLedger:
             raise ValueError("maximum_future_skew_seconds must be a nonnegative integer")
         self.r = redis_client
         self.max_events = max_events_per_tenant
-        self.maximum_future_skew = timedelta(seconds=maximum_future_skew_seconds)
+        try:
+            self.maximum_future_skew = timedelta(seconds=maximum_future_skew_seconds)
+        except OverflowError as exc:
+            raise ValueError(
+                "maximum_future_skew_seconds exceeds the supported range") from exc
 
     @classmethod
     def _keys(cls, tenant_id: str) -> tuple[str, str]:
@@ -263,7 +267,7 @@ class RuntimeAuditLedger:
             occurred_at = event.occurred_at.astimezone(UTC)
         except (OverflowError, ValueError) as exc:
             raise AuditLedgerError("event timestamp cannot be normalized to UTC") from exc
-        if occurred_at > datetime.now(UTC) + self.maximum_future_skew:
+        if occurred_at - datetime.now(UTC) > self.maximum_future_skew:
             raise AuditLedgerError("event timestamp is too far in the future")
         records_key, head_key = self._keys(tenant_id)
         try:
