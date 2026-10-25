@@ -457,6 +457,19 @@ def test_admission_rejects_backend_digest_and_version_mismatch_without_fallback(
     assert _decide(readiness=other_backend_ready).reason == "backend_not_provisioned"
 
 
+@pytest.mark.parametrize("field", [
+    "run_id", "tenant_id", "agent_id", "version", "backend_environment_id", "sha256",
+])
+def test_admission_request_rejects_string_subclasses(field):
+    class HostileText(str):
+        pass
+
+    data = _request().model_dump(mode="python")
+    data[field] = HostileText(data[field])
+    with pytest.raises(ValidationError, match="admission request text fields must be built-in strings"):
+        AdmissionRequest(**data)
+
+
 def test_admission_revalidates_request_and_readiness_contracts():
     invalid_request = _request().model_copy(update={"input_bytes": True})
     with pytest.raises(ValueError, match="invalid admission request contract"):

@@ -659,6 +659,16 @@ class AdmissionRequest(StrictContract):
     input_bytes: int = Field(ge=0, le=1_048_576, strict=True)
     deadline_seconds: int = Field(ge=1, le=3600, strict=True)
 
+    @field_validator(
+        "run_id", "tenant_id", "agent_id", "version", "backend_environment_id",
+        "sha256", mode="before",
+    )
+    @classmethod
+    def _admission_text_fields_are_builtin(cls, value: object) -> object:
+        if type(value) is not str:
+            raise ValueError("admission request text fields must be built-in strings")
+        return value
+
 
 class AdmissionDecision(StrictContract):
     admitted: bool = Field(strict=True)
