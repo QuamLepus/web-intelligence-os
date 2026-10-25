@@ -58,6 +58,15 @@ def test_audit_redis_values_reject_string_subclasses():
         RuntimeAuditLedger._text(UnsafeRedisText("{}"))
 
 
+def test_audit_decoder_rejects_record_collection_subclasses():
+    class UnsafeRecords(list):
+        def __iter__(self):
+            raise AssertionError("list subclass override must not run")
+
+    with pytest.raises(AuditLedgerError, match="invalid audit record collection"):
+        _ledger()._decode_records(UnsafeRecords())
+
+
 def test_audit_head_decoder_rejects_mapping_subclasses():
     class UnsafeHead(dict):
         def items(self):
