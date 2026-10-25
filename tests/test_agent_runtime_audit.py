@@ -1,5 +1,6 @@
 """Tenant isolation, retention, and integrity tests for runtime audit metadata."""
 import base64
+import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -207,6 +208,28 @@ def test_verify_fails_closed_when_redis_is_unavailable(monkeypatch):
 
     monkeypatch.setattr(ledger, "_snapshot", unavailable)
     assert not ledger.verify("tenant-a")
+
+
+def test_matches_checkpoint_fails_closed_when_redis_is_unavailable(monkeypatch):
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    ledger = _ledger()
+    now = datetime.now(UTC)
+    zero_hash = "0" * 64
+    checkpoint = AuditCheckpoint(
+        tenant_sha256=hashlib.sha256(b"tenant-a").hexdigest(),
+        sequence=0, event_hash=zero_hash, first_sequence=1,
+        first_previous_hash=zero_hash, created_at=now,
+        signer_id="audit-operator", key_id="audit-key", signature="dummy")
+    monkeypatch.setattr(
+        ledger, "verify_checkpoint", lambda *args, **kwargs: True)
+
+    def unavailable(_tenant_id):
+        raise RedisConnectionError("redis unavailable")
+
+    monkeypatch.setattr(ledger, "_snapshot", unavailable)
+    assert not ledger.matches_checkpoint(
+        checkpoint, "tenant-a", trusted_keys={}, now=now)
 
 
 def test_audit_ledger_detects_record_tampering_and_head_mismatch():

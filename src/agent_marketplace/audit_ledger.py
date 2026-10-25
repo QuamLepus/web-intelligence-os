@@ -510,7 +510,7 @@ class RuntimeAuditLedger:
             return False
         try:
             records, head = self._snapshot(tenant_id)
-        except AuditLedgerError:
+        except (AuditLedgerError, RedisError):
             return False
         if not self._verify_snapshot(tenant_id, records, head):
             return False
