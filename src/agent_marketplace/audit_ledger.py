@@ -266,7 +266,12 @@ class RuntimeAuditLedger:
         if occurred_at > datetime.now(UTC) + self.maximum_future_skew:
             raise AuditLedgerError("event timestamp is too far in the future")
         records_key, head_key = self._keys(tenant_id)
-        with self.r.pipeline() as pipe:
+        try:
+            pipeline_context = self.r.pipeline()
+        except RedisError as exc:
+            raise AuditLedgerError(
+                "cannot append to an invalid audit ledger") from exc
+        with pipeline_context as pipe:
             while True:
                 try:
                     # Protect both the logical head and retained bytes from
