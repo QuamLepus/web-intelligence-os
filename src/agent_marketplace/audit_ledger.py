@@ -401,7 +401,8 @@ class RuntimeAuditLedger:
                         "cannot append to an invalid audit ledger") from exc
 
     def _decode_records(self, raw_records: list[Any]) -> list[AuditRecord]:
-        if type(raw_records) is not list:
+        if (type(raw_records) is not list
+                or len(raw_records) > self.MAX_APPEND_SCAN_EVENTS):
             raise AuditLedgerError("invalid audit record collection")
         records = []
         for raw in raw_records:
