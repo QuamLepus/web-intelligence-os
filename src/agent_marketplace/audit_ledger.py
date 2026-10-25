@@ -141,6 +141,8 @@ class AuditCheckpoint(StrictContract):
 
 def _validated_checkpoint(checkpoint: object) -> AuditCheckpoint | None:
     """Revalidate values because Pydantic model_copy(update=...) skips checks."""
+    if type(checkpoint) is not AuditCheckpoint:
+        return None
     try:
         data = checkpoint.model_dump(mode="python")
         return AuditCheckpoint.model_validate(data)
@@ -215,6 +217,8 @@ class RuntimeAuditLedger:
             raise AuditLedgerError("invalid audit head encoding") from exc
 
     def append(self, tenant_id: str, event: RuntimeAuditEvent) -> AuditRecord:
+        if type(event) is not RuntimeAuditEvent:
+            raise AuditLedgerError("invalid audit event contract")
         try:
             event = RuntimeAuditEvent.model_validate(
                 event.model_dump(mode="python"))
@@ -524,6 +528,8 @@ class RuntimeAuditLedger:
             return False
         try:
             key = trusted_keys.get(checkpoint.key_id)
+            if type(key) is not TrustedAttestationKey:
+                return False
             key = TrustedAttestationKey.model_validate(
                 key.model_dump(mode="python"))
         except (AttributeError, TypeError, ValueError, ValidationError):

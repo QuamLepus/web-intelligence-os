@@ -63,6 +63,13 @@ def test_audit_tenant_ids_are_not_coerced_from_non_strings():
     assert ledger.verify("123")
 
 
+def test_append_rejects_non_contract_objects_without_coercion():
+    ledger = _ledger()
+    with pytest.raises(AuditLedgerError, match="invalid audit event contract"):
+        ledger.append("tenant-a", object())
+    assert ledger.verify("tenant-a")
+
+
 def test_append_revalidates_runtime_events_copied_with_invalid_updates():
     ledger = _ledger()
     malformed = _event().model_copy(update={
@@ -339,6 +346,8 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key}, now=now)
     assert RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        object(), tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
     for invalid_key in (
         trusted_key.model_copy(update={"valid_from": now.replace(tzinfo=None)}),
         trusted_key.model_copy(update={"expires_at": now - timedelta(days=2)}),
