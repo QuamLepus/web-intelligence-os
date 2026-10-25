@@ -203,7 +203,10 @@ def _normalized_utc_now(now: datetime | None) -> datetime | None:
     if (type(now) is not datetime or not _has_builtin_timezone(now)
             or now.utcoffset() is None):
         return None
-    return now.astimezone(UTC)
+    try:
+        return now.astimezone(UTC)
+    except (OverflowError, ValueError):
+        return None
 
 
 def attestation_signing_payload(attestation: ArtifactAttestation) -> bytes:

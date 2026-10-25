@@ -2,7 +2,7 @@
 import base64
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta, tzinfo
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
 from unittest.mock import patch
 
 import pytest
@@ -634,6 +634,12 @@ def test_verifiers_fail_closed_on_invalid_now_argument_types():
     assert not verify_attestation_signature(signed, _TRUSTED_KEYS, now=True)
     assert not verify_backend_readiness(
         readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=True)
+    overflowing_now = datetime.min.replace(
+        tzinfo=timezone(timedelta(hours=23, minutes=59)))
+    assert not verify_attestation_signature(
+        signed, _TRUSTED_KEYS, now=overflowing_now)
+    assert not verify_backend_readiness(
+        readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=overflowing_now)
 
     class ReadinessSubclass(BackendReadiness):
         pass
