@@ -255,6 +255,16 @@ class BackendGateEvidence(StrictContract):
     test_run_id: str = Field(min_length=1, max_length=160)
     report_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
+    @field_validator(
+        "gate_id", "environment_id", "policy_revision", "result", "test_run_id",
+        "report_sha256", mode="before",
+    )
+    @classmethod
+    def _text_fields_are_builtin(cls, value: object) -> object:
+        if type(value) is not str:
+            raise ValueError("gate-evidence text fields must be built-in strings")
+        return value
+
     @field_validator("tested_at", mode="before")
     @classmethod
     def _tested_at_input_explicit(cls, value: object) -> object:
