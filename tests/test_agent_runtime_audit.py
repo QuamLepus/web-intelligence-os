@@ -118,7 +118,7 @@ def test_audit_ledger_detects_record_tampering_and_head_mismatch():
     assert not ledger.verify("tenant-a")
     with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
         ledger.read("tenant-a")
-    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+    with pytest.raises(AuditLedgerError, match="invalid audit record encoding"):
         ledger.append("tenant-a", _event(suffix="after-tamper"))
 
     redis_client.lset(records_key, 0, "{}")
@@ -160,7 +160,7 @@ def test_append_watches_retained_records_against_concurrent_mutation(monkeypatch
     monkeypatch.setattr(
         redis_client, "pipeline",
         lambda *args, **kwargs: MutatingPipeline(base_pipeline(*args, **kwargs)))
-    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+    with pytest.raises(AuditLedgerError, match="invalid audit record encoding"):
         ledger.append("tenant-a", _event(suffix="racing-append"))
     assert mutate_once["pending"] is False
     assert redis_client.llen(records_key) == 1
@@ -193,7 +193,23 @@ def test_audit_record_sequence_rejects_coercible_non_integer_values():
         redis_client.lset(records_key, 0, json.dumps(original))
 
 
+def test_audit_record_decoder_rejects_duplicate_json_keys():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client)
+    ledger.append("tenant-a", _event())
+    records_key, _ = ledger._keys("tenant-a")
+    original = redis_client.lindex(records_key, 0)
+
+    # A permissive decoder would use the final sequence key and recover the
+    # original record, hiding the duplicate-key mutation from chain checks.
+    redis_client.lset(records_key, 0, '{"sequence":false,' + original[1:])
+    assert not ledger.verify("tenant-a")
+    with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
+        ledger.read("tenant-a")
+
+
 def test_legacy_unanchored_ledger_can_be_verified_and_upgraded_on_append():
+
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client, max_events=3)
     for index in range(3):
