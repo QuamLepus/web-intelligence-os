@@ -595,6 +595,17 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         trusted_keys=trusted_keys, now=now)
     assert not RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=True)
+
+    class HostileDateTime(datetime):
+        def utcoffset(self):
+            raise AssertionError("datetime subclass callbacks must not run")
+
+    hostile_now = HostileDateTime(
+        now.year, now.month, now.day, now.hour, now.minute, now.second,
+        now.microsecond, tzinfo=UTC)
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys,
+        now=hostile_now)
     assert not ledger.matches_checkpoint(
         checkpoint, "tenant-a", trusted_keys=trusted_keys, now=True)
     assert ledger.matches_checkpoint(

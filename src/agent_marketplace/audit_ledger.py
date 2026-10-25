@@ -595,7 +595,7 @@ class RuntimeAuditLedger:
             return False
         if now is None:
             current_time = datetime.now(UTC)
-        elif (isinstance(now, datetime)
+        elif (type(now) is datetime
               and now.tzinfo is not None and now.utcoffset() is not None):
             current_time = now.astimezone(UTC)
         else:
