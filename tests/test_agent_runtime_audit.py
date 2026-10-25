@@ -200,6 +200,19 @@ def test_append_revalidates_runtime_events_copied_with_invalid_updates():
     assert ledger.verify("tenant-a")
 
 
+def test_append_normalizes_recursion_errors_during_event_revalidation(monkeypatch):
+    ledger = _ledger()
+    event = _event()
+
+    def recurse(*args, **kwargs):
+        raise RecursionError("event model serialization recursed")
+
+    monkeypatch.setattr(RuntimeAuditEvent, "model_dump", recurse)
+    with pytest.raises(AuditLedgerError, match="invalid audit event contract"):
+        ledger.append("tenant-a", event)
+    assert ledger.verify("tenant-a")
+
+
 def test_audit_ledger_rejects_events_with_far_future_timestamps():
     ledger = _ledger()
     future_event = _event().model_copy(update={
