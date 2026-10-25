@@ -204,6 +204,7 @@ class RuntimeAuditLedger:
     ZERO_HASH = "0" * 64
     MAX_RECORD_BYTES = 16_384
     MAX_APPEND_SCAN_EVENTS = 5000
+    MAX_HEAD_TEXT_LENGTH = 64
 
     def __init__(
         self,
@@ -259,6 +260,10 @@ class RuntimeAuditLedger:
                 raise ValueError("Redis audit head has too many fields")
             result: dict[str, str] = {}
             for key, item in value.items():
+                if any(type(field) not in (bytes, str)
+                       or len(field) > cls.MAX_HEAD_TEXT_LENGTH
+                       for field in (key, item)):
+                    raise ValueError("Redis audit head text exceeds the length limit")
                 text_key = cls._text(key)
                 if text_key in result:
                     raise ValueError("duplicate decoded audit head field")
