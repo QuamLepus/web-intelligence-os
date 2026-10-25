@@ -122,6 +122,11 @@ def test_snapshot_verifier_rejects_container_subclasses():
         "tenant-a", [], UnsafeHead())
 
 
+def test_snapshot_verifier_rejects_non_audit_record_values():
+    assert not RuntimeAuditLedger._verify_snapshot(
+        "tenant-a", [object()], {})
+
+
 def test_append_rejects_non_contract_objects_without_coercion():
     ledger = _ledger()
     with pytest.raises(AuditLedgerError, match="invalid audit event contract"):

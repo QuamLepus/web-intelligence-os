@@ -394,6 +394,10 @@ class RuntimeAuditLedger:
             return False
         if not records:
             return not head
+        if any(type(record) is not AuditRecord
+               or type(record.event) is not RuntimeAuditEvent
+               for record in records):
+            return False
         # Accept legacy heads only when both retention-anchor fields are absent;
         # unknown or partially populated fields must not be silently ignored.
         if (set(head) - {"sequence", "event_hash", "first_sequence",
