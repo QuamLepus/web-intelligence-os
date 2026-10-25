@@ -235,6 +235,17 @@ def test_audit_ledger_normalizes_timestamp_utc_overflow():
     assert ledger.verify("tenant-a")
 
 
+def test_append_normalizes_redis_pipeline_creation_failures(monkeypatch):
+    ledger = _ledger()
+
+    def unavailable_pipeline(*args, **kwargs):
+        raise RedisError("Redis is unavailable")
+
+    monkeypatch.setattr(ledger.r, "pipeline", unavailable_pipeline)
+    with pytest.raises(AuditLedgerError, match="cannot append to an invalid audit ledger"):
+        ledger.append("tenant-a", _event())
+
+
 def test_append_normalizes_redis_operation_failures(monkeypatch):
     ledger = _ledger()
 
