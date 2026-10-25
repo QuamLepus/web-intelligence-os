@@ -582,6 +582,12 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
             ledger.create_checkpoint(
                 "tenant-a", signer_id="audit-operator", key_id="audit-key-1",
                 private_key=private_key, created_at=invalid_created_at)
+    overflowing_created_at = datetime(
+        1, 1, 1, tzinfo=timezone(timedelta(hours=23, minutes=59)))
+    with pytest.raises(AuditLedgerError, match="cannot be normalized to UTC"):
+        ledger.create_checkpoint(
+            "tenant-a", signer_id="audit-operator", key_id="audit-key-1",
+            private_key=private_key, created_at=overflowing_created_at)
 
     class HostileDateTime(datetime):
         def utcoffset(self):
@@ -653,6 +659,9 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key}, now=now)
     assert RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint.model_copy(update={"created_at": overflowing_created_at}),
+        tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
     assert not RuntimeAuditLedger.verify_checkpoint(
         object(), tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
     for invalid_key in (

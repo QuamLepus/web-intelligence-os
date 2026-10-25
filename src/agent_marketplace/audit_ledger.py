@@ -520,6 +520,10 @@ class RuntimeAuditLedger:
         if (type(timestamp) is not datetime or not _has_builtin_timezone(timestamp)
                 or timestamp.utcoffset() is None):
             raise AuditLedgerError("checkpoint timestamp must be a timezone-aware datetime")
+        try:
+            timestamp = timestamp.astimezone(UTC)
+        except (OverflowError, ValueError) as exc:
+            raise AuditLedgerError("checkpoint timestamp cannot be normalized to UTC") from exc
         checkpoint = AuditCheckpoint(
             tenant_sha256=hashlib.sha256(tenant_id.encode("utf-8")).hexdigest(),
             sequence=int(head.get("sequence", 0)),
@@ -621,22 +625,25 @@ class RuntimeAuditLedger:
         if (key.key_id != checkpoint.key_id
                 or key.signer_id != checkpoint.signer_id):
             return False
-        if now is None:
-            current_time = datetime.now(UTC)
-        elif (type(now) is datetime and _has_builtin_timezone(now)
-              and now.utcoffset() is not None):
-            current_time = now.astimezone(UTC)
-        else:
-            return False
-        signed_at = checkpoint.created_at
-        if signed_at.tzinfo is None or signed_at.utcoffset() is None:
-            return False
-        signed_at = signed_at.astimezone(UTC)
-        if (signed_at > current_time
-                or signed_at < key.valid_from.astimezone(UTC)
-                or signed_at >= key.expires_at.astimezone(UTC)
-                or (key.revoked_at is not None
-                    and current_time >= key.revoked_at.astimezone(UTC))):
+        try:
+            if now is None:
+                current_time = datetime.now(UTC)
+            elif (type(now) is datetime and _has_builtin_timezone(now)
+                  and now.utcoffset() is not None):
+                current_time = now.astimezone(UTC)
+            else:
+                return False
+            signed_at = checkpoint.created_at
+            if signed_at.tzinfo is None or signed_at.utcoffset() is None:
+                return False
+            signed_at = signed_at.astimezone(UTC)
+            if (signed_at > current_time
+                    or signed_at < key.valid_from.astimezone(UTC)
+                    or signed_at >= key.expires_at.astimezone(UTC)
+                    or (key.revoked_at is not None
+                        and current_time >= key.revoked_at.astimezone(UTC))):
+                return False
+        except (OverflowError, ValueError):
             return False
         try:
             public_key = serialization.load_pem_public_key(
