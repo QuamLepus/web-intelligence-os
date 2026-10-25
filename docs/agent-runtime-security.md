@@ -186,7 +186,8 @@ tenant binding, signer/key lifecycle, and current Redis head before reporting a 
 audit records must use the exact canonical JSON encoding emitted by the
 ledger; duplicate keys and noncanonical representations are rejected. Their
 sequences must be actual nonnegative JSON integers, so coercible booleans,
-floats, and strings fail verification. The ledger does not export or persist checkpoints itself. It is not
+floats, and strings fail verification. Redis head sequence fields must use
+canonical unsigned decimal strings without signs or leading zeroes. The ledger does not export or persist checkpoints itself. It is not
 wired into runtime paths; Redis operators can rewrite both records and heads,
 so without an externally retained checkpoint it is not immutable, tamper-proof,
 or externally anchored. Retention keeps the latest configured window and the

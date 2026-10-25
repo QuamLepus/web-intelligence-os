@@ -63,6 +63,17 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _parse_canonical_sequence(value: object, *, minimum: int = 0) -> int:
+    """Parse a Redis sequence only in its canonical unsigned-decimal form."""
+    if (not isinstance(value, str) or not value.isascii() or not value.isdecimal()
+            or (len(value) > 1 and value.startswith("0"))):
+        raise ValueError("audit head sequence is not canonical")
+    sequence = int(value)
+    if sequence < minimum:
+        raise ValueError("audit head sequence is out of range")
+    return sequence
+
+
 def _record_hash(sequence: int, previous_hash: str,
                  event_data: dict[str, Any]) -> str:
     payload = json.dumps({
@@ -315,7 +326,9 @@ class RuntimeAuditLedger:
         if not records:
             return not head
         try:
-            first_sequence = int(head.get("first_sequence", records[0].sequence))
+            first_sequence = (
+                _parse_canonical_sequence(head["first_sequence"], minimum=1)
+                if "first_sequence" in head else records[0].sequence)
             first_previous_hash = head.get(
                 "first_previous_hash", records[0].previous_hash)
         except (TypeError, ValueError):
@@ -336,7 +349,8 @@ class RuntimeAuditLedger:
             previous = record.event_hash
             prior_sequence = record.sequence
         try:
-            return (int(head.get("sequence", -1)) == records[-1].sequence
+            return (_parse_canonical_sequence(head.get("sequence", "-1"))
+                    == records[-1].sequence
                     and head.get("event_hash", "") == records[-1].event_hash)
         except (TypeError, ValueError):
             return False

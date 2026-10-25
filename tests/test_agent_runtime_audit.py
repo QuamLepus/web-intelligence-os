@@ -193,6 +193,22 @@ def test_audit_record_sequence_rejects_coercible_non_integer_values():
         redis_client.lset(records_key, 0, json.dumps(original))
 
 
+def test_audit_head_rejects_noncanonical_sequence_encoding():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client)
+    ledger.append("tenant-a", _event())
+    _, head_key = ledger._keys("tenant-a")
+
+    for field in ("sequence", "first_sequence"):
+        original = redis_client.hget(head_key, field)
+        redis_client.hset(head_key, field, "+1")
+        assert not ledger.verify("tenant-a")
+        redis_client.hset(head_key, field, "01")
+        assert not ledger.verify("tenant-a")
+        redis_client.hset(head_key, field, original)
+    assert ledger.verify("tenant-a")
+
+
 def test_audit_record_decoder_rejects_duplicate_json_keys():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client)
