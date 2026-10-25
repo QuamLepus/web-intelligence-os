@@ -107,6 +107,21 @@ def test_audit_tenant_ids_are_not_coerced_from_non_strings():
         TenantId("tenant-a"), [], {})
 
 
+def test_snapshot_verifier_rejects_container_subclasses():
+    class UnsafeRecords(list):
+        def __iter__(self):
+            raise AssertionError("record list subclass override must not run")
+
+    class UnsafeHead(dict):
+        def __iter__(self):
+            raise AssertionError("head mapping subclass override must not run")
+
+    assert not RuntimeAuditLedger._verify_snapshot(
+        "tenant-a", UnsafeRecords(), {})
+    assert not RuntimeAuditLedger._verify_snapshot(
+        "tenant-a", [], UnsafeHead())
+
+
 def test_append_rejects_non_contract_objects_without_coercion():
     ledger = _ledger()
     with pytest.raises(AuditLedgerError, match="invalid audit event contract"):
