@@ -4,10 +4,12 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from itertools import pairwise
+from unittest.mock import patch
 
 import fakeredis
 import pytest
 from pydantic import ValidationError
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -360,6 +362,12 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     assert not RuntimeAuditLedger.verify_checkpoint(
         checkpoint.model_copy(update={"signature": checkpoint.signature + "="}),
         tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
+    with patch(
+        "src.agent_marketplace.audit_ledger.serialization.load_pem_public_key",
+        side_effect=UnsupportedAlgorithm("unsupported public key"),
+    ):
+        assert not RuntimeAuditLedger.verify_checkpoint(
+            checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
     malformed_checkpoint = checkpoint.model_copy(update={
         "sequence": True, "signature": "pending",
     })
