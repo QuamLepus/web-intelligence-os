@@ -444,12 +444,16 @@ class RuntimeAuditLedger:
         if (key is None or key.key_id != checkpoint.key_id
                 or key.signer_id != checkpoint.signer_id):
             return False
-        current_time = now or datetime.now(UTC)
-        signed_at = checkpoint.created_at
-        if (current_time.tzinfo is None or current_time.utcoffset() is None
-                or signed_at.tzinfo is None or signed_at.utcoffset() is None):
+        if now is None:
+            current_time = datetime.now(UTC)
+        elif (isinstance(now, datetime)
+              and now.tzinfo is not None and now.utcoffset() is not None):
+            current_time = now.astimezone(UTC)
+        else:
             return False
-        current_time = current_time.astimezone(UTC)
+        signed_at = checkpoint.created_at
+        if signed_at.tzinfo is None or signed_at.utcoffset() is None:
+            return False
         signed_at = signed_at.astimezone(UTC)
         if (signed_at > current_time
                 or signed_at < key.valid_from.astimezone(UTC)
