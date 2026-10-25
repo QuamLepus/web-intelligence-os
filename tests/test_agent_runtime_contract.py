@@ -276,6 +276,15 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
         assert set(readiness.conformance_evidence) == required_gates
         assert verify_backend_readiness(
             readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW)
+        oversized_operator_keys = {
+            f"unrelated-{index}": _READINESS_KEYS["readiness-key-1"]
+            for index in range(257)
+        }
+        assert not verify_backend_readiness(
+            readiness, oversized_operator_keys, _ASSESSOR_KEYS, now=NOW)
+        assert not verify_backend_readiness(
+            readiness, _READINESS_KEYS, {"x" * 161: _ASSESSOR_KEYS["assessor-key-1"]},
+            now=NOW)
 
         class TrustedKeyMap(dict):
             pass
