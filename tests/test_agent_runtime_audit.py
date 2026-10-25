@@ -3,7 +3,7 @@ import base64
 import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from itertools import pairwise
 from unittest.mock import patch
 
@@ -541,6 +541,27 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     ledger.append("tenant-a", _event(suffix="after-checkpoint"))
     assert not ledger.matches_checkpoint(
         checkpoint, "tenant-a", trusted_keys=trusted_keys, now=now)
+
+
+def test_checkpoint_verification_fails_closed_on_recursive_timestamp_validation():
+    class RecursiveTimezone(tzinfo):
+        def utcoffset(self, dt):
+            return dt.utcoffset()
+
+        def dst(self, dt):
+            return timedelta(0)
+
+    zero_hash = "0" * 64
+    checkpoint = AuditCheckpoint(
+        tenant_sha256=hashlib.sha256(b"tenant-a").hexdigest(),
+        sequence=0, event_hash=zero_hash, first_sequence=1,
+        first_previous_hash=zero_hash, created_at=datetime.now(UTC),
+        signer_id="audit-operator", key_id="audit-key", signature="dummy")
+    malformed = checkpoint.model_copy(update={
+        "created_at": datetime.now().replace(tzinfo=RecursiveTimezone())})
+
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        malformed, tenant_id="tenant-a", trusted_keys={})
 
 
 def test_signed_checkpoint_rejects_revoked_or_expired_signing_keys():
