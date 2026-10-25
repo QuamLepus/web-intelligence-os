@@ -49,6 +49,8 @@ def test_audit_ledger_limits_require_exact_integer_types():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     with pytest.raises(ValueError, match="positive integer"):
         RuntimeAuditLedger(redis_client, max_events_per_tenant=True)
+    with pytest.raises(ValueError, match="no greater than 5000"):
+        RuntimeAuditLedger(redis_client, max_events_per_tenant=5001)
     with pytest.raises(ValueError, match="nonnegative integer"):
         RuntimeAuditLedger(redis_client, maximum_future_skew_seconds=True)
 
