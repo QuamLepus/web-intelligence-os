@@ -92,6 +92,7 @@ BACKEND_REQUIRED_GATES: dict[RuntimeBackend, frozenset[str]] = {
         "cancellation_verified", "cross_run_cleanup_verified",
     }),
 }
+MAX_BACKEND_GATE_COUNT = max(map(len, BACKEND_REQUIRED_GATES.values()))
 
 
 def _runtime_backend_input_is_builtin(value: object) -> object:
@@ -424,6 +425,8 @@ class BackendReadiness(StrictContract):
     def _conformance_evidence_is_builtin_mapping(cls, value: object) -> object:
         if type(value) is not dict:
             raise ValueError("conformance evidence must be a built-in dictionary")
+        if len(value) > MAX_BACKEND_GATE_COUNT:
+            raise ValueError("conformance evidence exceeds the backend gate limit")
         if any(type(gate) is not str or type(digest) is not str
                for gate, digest in value.items()):
             raise ValueError("conformance evidence keys and digests must be built-in strings")
