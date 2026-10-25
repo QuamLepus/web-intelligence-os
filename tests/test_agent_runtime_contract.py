@@ -666,6 +666,14 @@ def test_verifiers_fail_closed_on_invalid_now_argument_types():
     extreme_readiness = readiness.model_copy(update={"issued_at": overflowing_now})
     assert not verify_backend_readiness(
         extreme_readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW)
+    with pytest.raises(ValueError, match="cannot be normalized to UTC"):
+        attestation_signing_payload(
+            _attestation().model_copy(update={"created_at": overflowing_now}))
+    for payload_builder in (
+        backend_readiness_signing_payload, backend_conformance_signing_payload,
+    ):
+        with pytest.raises(ValueError, match="cannot be normalized to UTC"):
+            payload_builder(extreme_readiness)
 
     class ReadinessSubclass(BackendReadiness):
         pass

@@ -199,10 +199,21 @@ class ArtifactAttestation(StrictContract):
 
 
 def _to_utc(value: datetime) -> datetime | None:
+    if type(value) is not datetime or not _has_builtin_timezone(value):
+        return None
     try:
+        if value.utcoffset() is None:
+            return None
         return value.astimezone(UTC)
     except (OverflowError, ValueError):
         return None
+
+
+def _utc_iso_timestamp(value: datetime) -> str:
+    normalized = _to_utc(value)
+    if normalized is None:
+        raise ValueError("timestamp cannot be normalized to UTC")
+    return normalized.isoformat()
 
 
 def _normalized_utc_now(now: datetime | None) -> datetime | None:
@@ -222,7 +233,7 @@ def attestation_signing_payload(attestation: ArtifactAttestation) -> bytes:
     value = {
         "agent_id": attestation.agent_id,
         "backend": attestation.backend.value,
-        "created_at": created_at.astimezone(UTC).isoformat(),
+        "created_at": _utc_iso_timestamp(created_at),
         "key_id": attestation.key_id,
         "provenance_id": attestation.provenance_id,
         "sha256": attestation.sha256,
@@ -462,8 +473,8 @@ def backend_conformance_signing_payload(readiness: BackendReadiness) -> bytes:
         "backend": readiness.backend.value,
         "conformance_evidence": readiness.conformance_evidence,
         "environment_id": readiness.environment_id,
-        "expires_at": readiness.expires_at.astimezone(UTC).isoformat(),
-        "issued_at": readiness.issued_at.astimezone(UTC).isoformat(),
+        "expires_at": _utc_iso_timestamp(readiness.expires_at),
+        "issued_at": _utc_iso_timestamp(readiness.issued_at),
         "policy_revision": readiness.policy_revision,
         "signature_algorithm": readiness.signature_algorithm,
     }
@@ -474,8 +485,8 @@ def backend_conformance_signing_payload(readiness: BackendReadiness) -> bytes:
 def backend_readiness_signing_payload(readiness: BackendReadiness) -> bytes:
     """Return canonical signed bytes for a backend readiness gate result."""
     value = readiness.model_dump(mode="json", exclude={"signature"})
-    value["issued_at"] = readiness.issued_at.astimezone(UTC).isoformat()
-    value["expires_at"] = readiness.expires_at.astimezone(UTC).isoformat()
+    value["issued_at"] = _utc_iso_timestamp(readiness.issued_at)
+    value["expires_at"] = _utc_iso_timestamp(readiness.expires_at)
     return json.dumps(value, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=True, allow_nan=False).encode("utf-8")
 
