@@ -551,6 +551,10 @@ class RuntimeAuditLedger:
             signature = base64.b64decode(
                 encoded + b"=" * (-len(encoded) % 4),
                 altchars=b"-_", validate=True)
+            canonical_signature = base64.urlsafe_b64encode(
+                signature).decode("ascii").rstrip("=")
+            if canonical_signature != checkpoint.signature:
+                return False
             public_key.verify(signature, _checkpoint_payload(checkpoint))
         except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature):
             return False

@@ -334,6 +334,9 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key}, now=now)
     assert RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint.model_copy(update={"signature": checkpoint.signature + "="}),
+        tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
     malformed_checkpoint = checkpoint.model_copy(update={
         "sequence": True, "signature": "pending",
     })
