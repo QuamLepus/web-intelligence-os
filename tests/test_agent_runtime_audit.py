@@ -564,6 +564,38 @@ def test_checkpoint_verification_fails_closed_on_recursive_timestamp_validation(
         malformed, tenant_id="tenant-a", trusted_keys={})
 
 
+def test_checkpoint_verification_fails_closed_on_recursive_key_validation():
+    class RecursiveTimezone(tzinfo):
+        def utcoffset(self, dt):
+            return dt.utcoffset()
+
+        def dst(self, dt):
+            return timedelta(0)
+
+    now = datetime.now(UTC)
+    private_key = Ed25519PrivateKey.generate()
+    public_key_pem = private_key.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+    trusted_key = TrustedAttestationKey(
+        key_id="audit-key", signer_id="audit-operator",
+        public_key_pem=public_key_pem,
+        valid_from=now - timedelta(days=1), expires_at=now + timedelta(days=1))
+    malformed_key = trusted_key.model_copy(update={
+        "valid_from": datetime.now().replace(tzinfo=RecursiveTimezone())})
+    zero_hash = "0" * 64
+    checkpoint = AuditCheckpoint(
+        tenant_sha256=hashlib.sha256(b"tenant-a").hexdigest(),
+        sequence=0, event_hash=zero_hash, first_sequence=1,
+        first_previous_hash=zero_hash, created_at=now,
+        signer_id="audit-operator", key_id="audit-key", signature="dummy")
+
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        checkpoint, tenant_id="tenant-a", trusted_keys={"audit-key": malformed_key},
+        now=now)
+
+
 def test_signed_checkpoint_rejects_revoked_or_expired_signing_keys():
     now = datetime.now(UTC)
     private_key = Ed25519PrivateKey.generate()

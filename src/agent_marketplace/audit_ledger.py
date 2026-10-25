@@ -562,7 +562,7 @@ class RuntimeAuditLedger:
                 return False
             key = TrustedAttestationKey.model_validate(
                 key.model_dump(mode="python"))
-        except (AttributeError, TypeError, ValueError, ValidationError):
+        except (AttributeError, TypeError, ValueError, ValidationError, RecursionError):
             return False
         if (key.key_id != checkpoint.key_id
                 or key.signer_id != checkpoint.signer_id):
