@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from src.agent_marketplace.runtime_contract import (
     BACKEND_REQUIRED_GATES,
+    MAX_BACKEND_EVIDENCE_TOTAL_BYTES,
     AdmissionDecision,
     AdmissionRequest,
     ArtifactAttestation,
@@ -344,6 +345,9 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
         assert not verify_backend_evidence(
             readiness, evidence, _source_evidence_for(backend), now=NOW,
             maximum_total_bytes=1)
+        assert not verify_backend_evidence(
+            readiness, evidence, source_evidence, now=NOW,
+            maximum_total_bytes=MAX_BACKEND_EVIDENCE_TOTAL_BYTES + 1)
         altered_source = _source_evidence_for(backend)
         altered_source[first_gate] += b"tampered"
         assert not verify_backend_evidence(
