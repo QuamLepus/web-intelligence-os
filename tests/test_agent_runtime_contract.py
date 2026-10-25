@@ -274,6 +274,14 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
         assert set(readiness.conformance_evidence) == required_gates
         assert verify_backend_readiness(
             readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW)
+
+        class TrustedKeyMap(dict):
+            pass
+
+        assert not verify_backend_readiness(
+            readiness, TrustedKeyMap(_READINESS_KEYS), _ASSESSOR_KEYS, now=NOW)
+        assert not verify_backend_readiness(
+            readiness, _READINESS_KEYS, TrustedKeyMap(_ASSESSOR_KEYS), now=NOW)
         assert not verify_backend_readiness(
             readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=NOW,
             maximum_validity_seconds=60)
@@ -534,6 +542,12 @@ def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
 
     test_keys = {"review-key-1": _trusted_key(public_pem)}
     assert verify_attestation_signature(signed, test_keys, now=NOW)
+
+    class TrustedKeyMap(dict):
+        pass
+
+    assert not verify_attestation_signature(
+        signed, TrustedKeyMap(test_keys), now=NOW)
 
     class AttestationSubclass(ArtifactAttestation):
         pass
