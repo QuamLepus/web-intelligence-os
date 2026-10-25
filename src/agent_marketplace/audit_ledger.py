@@ -418,7 +418,10 @@ class RuntimeAuditLedger:
         with self.r.pipeline(transaction=True) as pipe:
             pipe.lrange(records_key, -self.max_events, -1)
             pipe.hgetall(head_key)
-            raw_records, raw_head = pipe.execute()
+            response = pipe.execute()
+        if type(response) is not list or len(response) != 2:
+            raise AuditLedgerError("invalid audit snapshot response")
+        raw_records, raw_head = response
         return self._decode_records(raw_records), self._text_mapping(raw_head)
 
     @staticmethod

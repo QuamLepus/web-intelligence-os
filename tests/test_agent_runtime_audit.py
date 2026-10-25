@@ -346,6 +346,30 @@ def test_create_checkpoint_fails_closed_when_redis_is_unavailable(monkeypatch):
             private_key=private_key)
 
 
+def test_snapshot_rejects_malformed_transaction_responses(monkeypatch):
+    ledger = _ledger()
+
+    class MalformedPipeline:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def lrange(self, *args):
+            return self
+
+        def hgetall(self, *args):
+            return self
+
+        def execute(self):
+            return [[], {}, "unexpected"]
+
+    monkeypatch.setattr(ledger.r, "pipeline", lambda *args, **kwargs: MalformedPipeline())
+    with pytest.raises(AuditLedgerError, match="invalid audit snapshot response"):
+        ledger._snapshot("tenant-a")
+
+
 def test_read_fails_closed_when_redis_is_unavailable(monkeypatch):
     from redis.exceptions import ConnectionError as RedisConnectionError
 
