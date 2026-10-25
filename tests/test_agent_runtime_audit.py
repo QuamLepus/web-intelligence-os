@@ -197,6 +197,18 @@ def test_audit_decoder_rejects_noncanonical_hash_fields(field, value):
     assert not ledger.verify("tenant-a")
 
 
+def test_verify_fails_closed_when_redis_is_unavailable(monkeypatch):
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    ledger = _ledger()
+
+    def unavailable(_tenant_id):
+        raise RedisConnectionError("redis unavailable")
+
+    monkeypatch.setattr(ledger, "_snapshot", unavailable)
+    assert not ledger.verify("tenant-a")
+
+
 def test_audit_ledger_detects_record_tampering_and_head_mismatch():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client)

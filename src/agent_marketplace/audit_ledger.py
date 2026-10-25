@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 from pydantic import Field, ValidationError, field_validator, model_validator
-from redis.exceptions import WatchError
+from redis.exceptions import RedisError, WatchError
 
 from src.agent_marketplace.runtime_contract import (
     RuntimeAuditEvent,
@@ -435,7 +435,7 @@ class RuntimeAuditLedger:
         try:
             tenant_id = self._validated_tenant_id(tenant_id)
             records, head = self._snapshot(tenant_id)
-        except (AuditLedgerError, TypeError):
+        except (AuditLedgerError, TypeError, RedisError):
             return False
         return self._verify_snapshot(tenant_id, records, head)
 
