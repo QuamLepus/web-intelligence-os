@@ -229,6 +229,16 @@ def attestation_signing_payload(attestation: ArtifactAttestation) -> bytes:
                       ensure_ascii=True, allow_nan=False).encode("utf-8")
 
 
+def _decode_canonical_signature(signature_text: str) -> bytes:
+    encoded = signature_text.encode("ascii")
+    signature = base64.b64decode(
+        encoded + b"=" * (-len(encoded) % 4), altchars=b"-_", validate=True)
+    canonical = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
+    if canonical != signature_text:
+        raise ValueError("signature encoding is not canonical base64url")
+    return signature
+
+
 def verify_attestation_signature(
     attestation: ArtifactAttestation,
     trusted_keys: Mapping[str, TrustedAttestationKey],
@@ -279,9 +289,7 @@ def verify_attestation_signature(
         public_key = serialization.load_pem_public_key(key.public_key_pem.encode("ascii"))
         if not isinstance(public_key, Ed25519PublicKey):
             return False
-        encoded = attestation.signature.encode("ascii")
-        signature = base64.b64decode(
-            encoded + b"=" * (-len(encoded) % 4), altchars=b"-_", validate=True)
+        signature = _decode_canonical_signature(attestation.signature)
         public_key.verify(signature, attestation_signing_payload(attestation))
     except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature, UnsupportedAlgorithm):
         return False
@@ -570,10 +578,7 @@ def _verify_readiness_signer(
         public_key = serialization.load_pem_public_key(key.public_key_pem.encode("ascii"))
         if not isinstance(public_key, Ed25519PublicKey):
             return False
-        signature = base64.b64decode(
-            signature_text.encode("ascii")
-            + b"=" * (-len(signature_text) % 4),
-            altchars=b"-_", validate=True)
+        signature = _decode_canonical_signature(signature_text)
         public_key.verify(signature, payload)
     except (ValueError, TypeError, UnicodeEncodeError, InvalidSignature, UnsupportedAlgorithm):
         return False
