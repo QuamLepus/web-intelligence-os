@@ -408,6 +408,18 @@ def test_trusted_key_rejects_string_subclasses():
         })
 
 
+def test_artifact_attestation_rejects_string_subclasses():
+    class HostileText(str):
+        def encode(self, *args, **kwargs):
+            raise AssertionError("attestation string subclass callbacks must not run")
+
+    data = _attestation().model_dump()
+    with pytest.raises(ValidationError, match="built-in strings"):
+        ArtifactAttestation(**{
+            **data, "signature": HostileText(data["signature"]),
+        })
+
+
 def test_artifact_attestation_requires_timezone_aware_creation_time():
     with pytest.raises(ValidationError, match="timezone"):
         _attestation(created_at=NOW.replace(tzinfo=None))
