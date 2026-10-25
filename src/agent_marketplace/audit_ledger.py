@@ -594,7 +594,8 @@ class RuntimeAuditLedger:
         if (checkpoint.signature_algorithm != "ed25519"
                 or checkpoint.tenant_sha256 != expected_tenant):
             return False
-        if type(trusted_keys) is not dict:
+        if (type(trusted_keys) is not dict
+                or any(type(key_id) is not str for key_id in trusted_keys)):
             return False
         try:
             key = trusted_keys.get(checkpoint.key_id)
