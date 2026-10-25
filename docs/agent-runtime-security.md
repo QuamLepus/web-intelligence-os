@@ -189,7 +189,9 @@ sequences must be actual nonnegative JSON integers, so coercible booleans,
 floats, and strings fail verification. Redis head sequence fields must use
 canonical unsigned decimal strings without signs or leading zeroes. Redis
 head metadata rejects unknown fields and partial retention anchors; legacy
-heads are accepted only when both anchor fields are absent. Append and
+heads are accepted only when both anchor fields are absent. Tenant identifiers
+must be nonempty strings at ledger boundaries; non-string values are never
+coerced into tenant keys. Append and
 checkpoint-verification boundaries also revalidate Pydantic objects from their
 serialized field values so unchecked model-copy updates cannot bypass contracts. The ledger does not export or persist checkpoints itself. It is not
 wired into runtime paths; Redis operators can rewrite both records and heads,
