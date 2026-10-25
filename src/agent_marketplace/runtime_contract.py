@@ -129,6 +129,15 @@ class ArtifactAttestation(StrictContract):
         return value
 
 
+def _normalized_utc_now(now: datetime | None) -> datetime | None:
+    if now is None:
+        return datetime.now(UTC)
+    if (not isinstance(now, datetime)
+            or now.tzinfo is None or now.utcoffset() is None):
+        return None
+    return now.astimezone(UTC)
+
+
 def attestation_signing_payload(attestation: ArtifactAttestation) -> bytes:
     """Return the stable UTF-8 payload that artifact reviewers must sign."""
     created_at = attestation.created_at
@@ -167,10 +176,9 @@ def verify_attestation_signature(
     if (key is None or key.key_id != attestation.key_id
             or key.signer_id != attestation.signer_id):
         return False
-    current_time = now or datetime.now(UTC)
-    if current_time.tzinfo is None or current_time.utcoffset() is None:
+    current_time = _normalized_utc_now(now)
+    if current_time is None:
         return False
-    current_time = current_time.astimezone(UTC)
     valid_from = key.valid_from.astimezone(UTC)
     expires_at = key.expires_at.astimezone(UTC)
     attested_at = attestation.created_at
@@ -354,10 +362,9 @@ def verify_backend_evidence(
             or set(source_evidence) != expected_gates
             or not required.issubset(expected_gates)):
         return False
-    current_time = now or datetime.now(UTC)
-    if current_time.tzinfo is None or current_time.utcoffset() is None:
+    current_time = _normalized_utc_now(now)
+    if current_time is None:
         return False
-    current_time = current_time.astimezone(UTC)
     total_bytes = 0
     for gate, raw in evidence.items():
         if not isinstance(raw, bytes):
@@ -468,10 +475,9 @@ def verify_backend_readiness(
     maximum_validity_seconds: int = 24 * 60 * 60,
 ) -> bool:
     """Verify independently assessed gate evidence and operator readiness."""
-    current_time = now or datetime.now(UTC)
-    if current_time.tzinfo is None or current_time.utcoffset() is None:
+    current_time = _normalized_utc_now(now)
+    if current_time is None:
         return False
-    current_time = current_time.astimezone(UTC)
     issued_at = readiness.issued_at.astimezone(UTC)
     expires_at = readiness.expires_at.astimezone(UTC)
     if (type(maximum_validity_seconds) is not int or maximum_validity_seconds < 1

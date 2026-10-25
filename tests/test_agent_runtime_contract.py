@@ -425,6 +425,17 @@ def test_contract_timestamps_reject_implicit_epoch_coercion():
             policy_revision="policy-v1", reason_code="denied")
 
 
+def test_verifiers_fail_closed_on_invalid_now_argument_types():
+    signed = _attestation()
+    readiness = _ready()
+    assert not verify_attestation_signature(signed, _TRUSTED_KEYS, now=True)
+    assert not verify_backend_readiness(
+        readiness, _READINESS_KEYS, _ASSESSOR_KEYS, now=True)
+    assert not verify_backend_evidence(
+        readiness, _evidence_for(readiness.backend),
+        _source_evidence_for(readiness.backend), now=True)
+
+
 def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
     private_key = Ed25519PrivateKey.generate()
     public_pem = private_key.public_key().public_bytes(
