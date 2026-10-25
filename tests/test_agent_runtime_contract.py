@@ -589,6 +589,19 @@ def test_artifact_attestation_requires_timezone_aware_creation_time():
         _attestation(created_at=NOW.replace(tzinfo=None))
 
 
+def test_tenant_identifiers_reject_invalid_utf8_text():
+    invalid_tenant_id = "tenant-\ud800"
+    with pytest.raises(ValidationError):
+        _request(tenant_id=invalid_tenant_id)
+    with pytest.raises(ValidationError):
+        RuntimeAuditEvent(
+            event_id="evt-invalid-tenant", occurred_at=NOW,
+            event_type="admission_denied", tenant_id=invalid_tenant_id,
+            agent_id="agent-1", version="1.0.0",
+            backend=RuntimeBackend.WASM_WASI, artifact_sha256="a" * 64,
+            policy_revision="policy-v1", reason_code="denied")
+
+
 def test_contract_timestamps_reject_implicit_epoch_coercion():
     with pytest.raises(ValidationError, match="timestamp"):
         _attestation(created_at=1_800_000_000)
