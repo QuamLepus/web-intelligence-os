@@ -519,7 +519,7 @@ class RuntimeAuditLedger:
                 or len(tenant_id) > RuntimeAuditLedger.MAX_TENANT_ID_LENGTH
                 or type(records) is not list
                 or len(records) > RuntimeAuditLedger.MAX_APPEND_SCAN_EVENTS
-                or type(head) is not dict):
+                or type(head) is not dict or len(head) > 4):
             return False
         try:
             tenant_id.encode("utf-8")
