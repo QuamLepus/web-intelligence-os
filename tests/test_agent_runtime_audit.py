@@ -545,6 +545,18 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
             ledger.create_checkpoint(
                 "tenant-a", signer_id="audit-operator", key_id="audit-key-1",
                 private_key=private_key, created_at=invalid_created_at)
+
+    class HostileDateTime(datetime):
+        def utcoffset(self):
+            raise AssertionError("datetime subclass callbacks must not run")
+
+    hostile_created_at = HostileDateTime(
+        now.year, now.month, now.day, now.hour, now.minute, now.second,
+        now.microsecond, tzinfo=UTC)
+    with pytest.raises(AuditLedgerError, match="timezone-aware datetime"):
+        ledger.create_checkpoint(
+            "tenant-a", signer_id="audit-operator", key_id="audit-key-1",
+            private_key=private_key, created_at=hostile_created_at)
     trusted_keys = {"audit-key-1": trusted_key}
     assert checkpoint.sequence == 3
     checkpoint_data = checkpoint.model_dump()
