@@ -435,6 +435,11 @@ def test_admission_requires_all_pins_review_and_backend_gates():
         _source_evidence_for(RuntimeBackend.WASM_WASI), now=NOW)
     assert _decide(readiness=_ready().model_copy(
         update={"signature": "invalid"})).reason == "backend_not_provisioned"
+    assert _decide(readiness=_ready().model_copy(
+        update={"signature": _ready().signature + "="})).reason == "backend_not_provisioned"
+    assert _decide(readiness=_ready().model_copy(
+        update={"assessor_signature": _ready().assessor_signature + "="}
+    )).reason == "backend_not_provisioned"
     # Artifact-review trust alone must never assert backend isolation readiness.
     assert _decide(readiness_keys={}).reason == "backend_not_provisioned"
     assert _decide(conformance_keys={}).reason == "backend_not_provisioned"
@@ -695,6 +700,9 @@ def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
 
     test_keys = {"review-key-1": _trusted_key(public_pem)}
     assert verify_attestation_signature(signed, test_keys, now=NOW)
+    assert not verify_attestation_signature(
+        signed.model_copy(update={"signature": signed.signature + "="}),
+        test_keys, now=NOW)
     with patch(
         "src.agent_marketplace.runtime_contract.serialization.load_pem_public_key",
         side_effect=UnsupportedAlgorithm("unsupported public key algorithm"),
