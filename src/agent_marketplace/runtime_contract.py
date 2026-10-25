@@ -235,7 +235,7 @@ def verify_artifact_bytes(
     quarantine scanning, or immutability. Callers must enforce those controls
     around byte acquisition and retention.
     """
-    if (not isinstance(artifact_bytes, bytes)
+    if (type(artifact_bytes) is not bytes
             or type(maximum_bytes) is not int or maximum_bytes < 0):
         return False
     if len(artifact_bytes) > maximum_bytes:
@@ -394,7 +394,7 @@ def verify_backend_evidence(
         return False
     total_bytes = 0
     for gate, raw in evidence.items():
-        if not isinstance(raw, bytes):
+        if type(raw) is not bytes:
             return False
         total_bytes += len(raw)
         if total_bytes > maximum_total_bytes:
@@ -420,7 +420,7 @@ def verify_backend_evidence(
                 or (current_time - tested_at).total_seconds() > maximum_age_seconds):
             return False
         source_bytes = source_evidence[gate]
-        if not isinstance(source_bytes, bytes):
+        if type(source_bytes) is not bytes:
             return False
         total_bytes += len(source_bytes)
         if (total_bytes > maximum_total_bytes
