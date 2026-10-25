@@ -73,6 +73,10 @@ def test_audit_tenant_ids_are_not_coerced_from_non_strings():
     with pytest.raises(AuditLedgerError, match="nonempty string"):
         ledger.read(TenantId("tenant-a"))
     assert not ledger.verify(TenantId("tenant-a"))
+    with pytest.raises(AuditLedgerError, match="built-in string"):
+        RuntimeAuditLedger._keys(TenantId("tenant-a"))
+    assert not RuntimeAuditLedger._verify_snapshot(
+        TenantId("tenant-a"), [], {})
 
 
 def test_append_rejects_non_contract_objects_without_coercion():
