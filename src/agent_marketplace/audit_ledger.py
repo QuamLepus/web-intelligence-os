@@ -250,7 +250,8 @@ class RuntimeAuditLedger:
         try:
             event = RuntimeAuditEvent.model_validate(
                 event.model_dump(mode="python"))
-        except (AttributeError, TypeError, ValueError, ValidationError) as exc:
+        except (AttributeError, TypeError, ValueError, ValidationError,
+                RecursionError) as exc:
             raise AuditLedgerError("invalid audit event contract") from exc
         try:
             tenant_id = self._validated_tenant_id(tenant_id)
