@@ -521,6 +521,13 @@ def test_admission_enforces_resource_bounds():
         _request(deadline_seconds=3601)
 
 
+def test_admission_decision_policy_revision_is_bounded():
+    with pytest.raises(ValidationError):
+        AdmissionDecision(
+            admitted=True, reason="admitted", backend=RuntimeBackend.WASM_WASI,
+            artifact_sha256=DIGEST, policy_revision="p" * 81)
+
+
 def test_contract_backend_fields_reject_string_subclasses():
     class HostileText(str):
         pass
