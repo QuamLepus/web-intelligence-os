@@ -179,6 +179,20 @@ def test_retained_window_anchor_detects_missing_prefix_record():
     assert not ledger.verify("tenant-a")
 
 
+def test_audit_record_sequence_rejects_coercible_non_integer_values():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client)
+    ledger.append("tenant-a", _event())
+    records_key, _ = ledger._keys("tenant-a")
+    original = json.loads(redis_client.lindex(records_key, 0))
+
+    for invalid_sequence in (True, 1.0, "1"):
+        altered = {**original, "sequence": invalid_sequence}
+        redis_client.lset(records_key, 0, json.dumps(altered))
+        assert not ledger.verify("tenant-a")
+        redis_client.lset(records_key, 0, json.dumps(original))
+
+
 def test_legacy_unanchored_ledger_can_be_verified_and_upgraded_on_append():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client, max_events=3)
