@@ -104,7 +104,7 @@ class AuditCheckpoint(StrictContract):
     def _timestamp_input_explicit(cls, value: object) -> object:
         if type(value) is datetime:
             return value
-        if isinstance(value, str):
+        if type(value) is str:
             try:
                 parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
             except ValueError as exc:
