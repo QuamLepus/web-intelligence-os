@@ -337,7 +337,7 @@ class RuntimeAuditLedger:
                 if record.to_json() != raw_text:
                     raise ValueError("audit record encoding is not canonical")
                 records.append(record)
-            except (KeyError, TypeError, ValueError) as exc:
+            except (KeyError, TypeError, ValueError, RecursionError) as exc:
                 raise AuditLedgerError("invalid audit record encoding") from exc
         return records
 
