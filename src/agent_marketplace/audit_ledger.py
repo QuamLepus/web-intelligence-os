@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Literal
@@ -85,6 +86,19 @@ def _record_hash(sequence: int, previous_hash: str,
     }, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
        allow_nan=False).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+@contextmanager
+def _append_pipeline(pipeline_context):
+    """Normalize Redis failures raised while entering or leaving a pipeline."""
+    try:
+        with pipeline_context as pipe:
+            yield pipe
+    except WatchError:
+        raise
+    except RedisError as exc:
+        raise AuditLedgerError(
+            "cannot append to an invalid audit ledger") from exc
 
 
 def _has_builtin_timezone(value: datetime) -> bool:
@@ -275,7 +289,7 @@ class RuntimeAuditLedger:
         except RedisError as exc:
             raise AuditLedgerError(
                 "cannot append to an invalid audit ledger") from exc
-        with pipeline_context as pipe:
+        with _append_pipeline(pipeline_context) as pipe:
             while True:
                 try:
                     # Protect both the logical head and retained bytes from
