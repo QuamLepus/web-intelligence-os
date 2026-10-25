@@ -398,6 +398,14 @@ class RuntimeAuditLedger:
                or type(record.event) is not RuntimeAuditEvent
                for record in records):
             return False
+        validated_events = []
+        for record in records:
+            try:
+                validated_events.append(RuntimeAuditEvent.model_validate(
+                    record.event.model_dump(mode="python")))
+            except (AttributeError, TypeError, ValueError, ValidationError,
+                    RecursionError):
+                return False
         # Accept legacy heads only when both retention-anchor fields are absent;
         # unknown or partially populated fields must not be silently ignored.
         if (set(head) - {"sequence", "event_hash", "first_sequence",
@@ -418,10 +426,10 @@ class RuntimeAuditLedger:
             return False
         previous = first_previous_hash
         prior_sequence = first_sequence - 1
-        for record in records:
-            event_data = _canonical_event(record.event)
+        for record, event in zip(records, validated_events, strict=True):
+            event_data = _canonical_event(event)
             if (record.sequence != prior_sequence + 1
-                    or record.event.tenant_id != tenant_id
+                    or event.tenant_id != tenant_id
                     or record.previous_hash != previous
                     or record.event_hash != _record_hash(
                         record.sequence, record.previous_hash, event_data)):

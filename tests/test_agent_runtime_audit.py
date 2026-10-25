@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from src.agent_marketplace.audit_ledger import (
     AuditCheckpoint,
+    AuditRecord,
     AuditLedgerError,
     RuntimeAuditLedger,
     _checkpoint_payload,
@@ -125,6 +126,19 @@ def test_snapshot_verifier_rejects_container_subclasses():
 def test_snapshot_verifier_rejects_non_audit_record_values():
     assert not RuntimeAuditLedger._verify_snapshot(
         "tenant-a", [object()], {})
+
+
+def test_snapshot_verifier_revalidates_copied_audit_events():
+    malformed_event = _event().model_copy(update={"tenant_id": 44})
+    zero_hash = "0" * 64
+    record = AuditRecord(
+        sequence=1, previous_hash=zero_hash, event_hash=zero_hash,
+        event=malformed_event)
+    head = {
+        "sequence": "1", "event_hash": zero_hash,
+    }
+
+    assert not RuntimeAuditLedger._verify_snapshot("tenant-a", [record], head)
 
 
 def test_append_rejects_non_contract_objects_without_coercion():
