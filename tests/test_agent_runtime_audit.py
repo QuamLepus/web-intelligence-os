@@ -275,7 +275,11 @@ def test_append_normalizes_redis_pipeline_context_failures(monkeypatch):
         ledger.append("tenant-a", _event())
 
 
-def test_append_rejects_malformed_transaction_responses(monkeypatch):
+@pytest.mark.parametrize(
+    "malformed_response",
+    [[], [None, True, 1], [1, False, 1], [1, True, None]],
+)
+def test_append_rejects_malformed_transaction_responses(monkeypatch, malformed_response):
     ledger = _ledger()
     original_pipeline = ledger.r.pipeline
 
@@ -295,7 +299,7 @@ def test_append_rejects_malformed_transaction_responses(monkeypatch):
 
         def execute(self):
             self.inner.execute()
-            return []
+            return malformed_response
 
     monkeypatch.setattr(
         ledger.r, "pipeline",
