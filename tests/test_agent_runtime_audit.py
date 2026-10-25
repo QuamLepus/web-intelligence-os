@@ -275,6 +275,38 @@ def test_append_normalizes_redis_pipeline_context_failures(monkeypatch):
         ledger.append("tenant-a", _event())
 
 
+def test_append_rejects_malformed_transaction_responses(monkeypatch):
+    ledger = _ledger()
+    original_pipeline = ledger.r.pipeline
+
+    class MalformedResponsePipeline:
+        def __init__(self, *args, **kwargs):
+            self.inner = original_pipeline(*args, **kwargs)
+
+        def __enter__(self):
+            self.inner.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.inner.__exit__(*args)
+
+        def __getattr__(self, name):
+            return getattr(self.inner, name)
+
+        def execute(self):
+            self.inner.execute()
+            return []
+
+    monkeypatch.setattr(
+        ledger.r, "pipeline",
+        lambda *args, **kwargs: MalformedResponsePipeline(*args, **kwargs))
+    with pytest.raises(AuditLedgerError, match="invalid audit append transaction response"):
+        ledger.append("tenant-a", _event())
+    records_key, head_key = ledger._keys("tenant-a")
+    assert ledger.r.llen(records_key) == 1
+    assert ledger.r.hget(head_key, "sequence") == "1"
+
+
 def test_append_normalizes_redis_operation_failures(monkeypatch):
     ledger = _ledger()
 

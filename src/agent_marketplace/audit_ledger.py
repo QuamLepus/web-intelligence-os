@@ -370,7 +370,9 @@ class RuntimeAuditLedger:
                         "sequence": sequence, "event_hash": record.event_hash,
                         "first_sequence": first_sequence,
                         "first_previous_hash": first_previous_hash})
-                    pipe.execute()
+                    transaction_result = pipe.execute()
+                    if type(transaction_result) is not list or len(transaction_result) != 3:
+                        raise AuditLedgerError("invalid audit append transaction response")
                     return record
                 except WatchError:
                     continue
