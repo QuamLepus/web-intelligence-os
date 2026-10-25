@@ -562,6 +562,15 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     checkpoint_data = checkpoint.model_dump()
     with pytest.raises(ValidationError, match="built-in datetime"):
         AuditCheckpoint(**{**checkpoint_data, "created_at": hostile_created_at})
+
+    class HostileTimestamp(str):
+        def replace(self, *args, **kwargs):
+            raise AssertionError("string subclass callbacks must not run")
+
+    with pytest.raises(ValidationError, match="checkpoint timestamp"):
+        AuditCheckpoint(**{
+            **checkpoint_data, "created_at": HostileTimestamp(now.isoformat()),
+        })
     for timestamp in (1_800_000_000, "1800000000"):
         with pytest.raises(ValidationError, match="timestamp"):
             AuditCheckpoint(**{**checkpoint_data, "created_at": timestamp})
