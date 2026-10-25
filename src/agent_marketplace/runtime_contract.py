@@ -96,6 +96,9 @@ BACKEND_REQUIRED_GATES: dict[RuntimeBackend, frozenset[str]] = {
     }),
 }
 MAX_BACKEND_GATE_COUNT = max(map(len, BACKEND_REQUIRED_GATES.values()))
+MAX_BACKEND_GATE_ID_LENGTH = max(
+    len(gate) for gates in BACKEND_REQUIRED_GATES.values() for gate in gates
+)
 
 
 def _runtime_backend_input_is_builtin(value: object) -> object:
@@ -434,6 +437,9 @@ class BackendReadiness(StrictContract):
         if any(type(gate) is not str or type(digest) is not str
                for gate, digest in value.items()):
             raise ValueError("conformance evidence keys and digests must be built-in strings")
+        if any(len(gate) > MAX_BACKEND_GATE_ID_LENGTH or len(digest) != 64
+               for gate, digest in value.items()):
+            raise ValueError("conformance evidence keys and digests must be bounded")
         return value
 
     @field_validator("conformance_evidence")
@@ -447,7 +453,7 @@ class BackendReadiness(StrictContract):
         allowed = BACKEND_REQUIRED_GATES[backend]
         if set(value) - allowed:
             raise ValueError("conformance evidence contains unknown backend gates")
-        if any(not re.fullmatch(r"[0-9a-f]{64}", digest)
+        if any(len(digest) != 64 or not re.fullmatch(r"[0-9a-f]{64}", digest)
                for digest in value.values()):
             raise ValueError("gate evidence must use lowercase SHA-256 digests")
         return value
