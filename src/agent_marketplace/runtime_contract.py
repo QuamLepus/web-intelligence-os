@@ -72,6 +72,7 @@ MAX_READINESS_GENERATION = (1 << 63) - 1
 MAX_BACKEND_EVIDENCE_TOTAL_BYTES = 10 * 1024 * 1024
 MAX_BACKEND_EVIDENCE_AGE_SECONDS = 24 * 60 * 60
 MAX_BACKEND_READINESS_VALIDITY_SECONDS = 24 * 60 * 60
+MAX_VERIFIED_ARTIFACT_BYTES = 50 * 1024 * 1024
 
 
 BACKEND_REQUIRED_GATES: dict[RuntimeBackend, frozenset[str]] = {
@@ -320,7 +321,7 @@ def verify_artifact_bytes(
     attestation: ArtifactAttestation,
     artifact_bytes: bytes,
     *,
-    maximum_bytes: int = 50 * 1024 * 1024,
+    maximum_bytes: int = MAX_VERIFIED_ARTIFACT_BYTES,
 ) -> bool:
     """Verify supplied artifact bytes against the signed SHA-256 digest.
 
@@ -330,7 +331,8 @@ def verify_artifact_bytes(
     """
     if (type(attestation) is not ArtifactAttestation
             or type(artifact_bytes) is not bytes
-            or type(maximum_bytes) is not int or maximum_bytes < 0):
+            or type(maximum_bytes) is not int
+            or not 0 <= maximum_bytes <= MAX_VERIFIED_ARTIFACT_BYTES):
         return False
     try:
         attestation = ArtifactAttestation.model_validate(
@@ -876,7 +878,7 @@ def decide_admission(
     backend_readiness: BackendReadiness | None,
     maximum_input_bytes: int = 1_048_576,
     maximum_deadline_seconds: int = 3600,
-    maximum_artifact_bytes: int = 50 * 1024 * 1024,
+    maximum_artifact_bytes: int = MAX_VERIFIED_ARTIFACT_BYTES,
     maximum_attestation_age_seconds: int = 90 * 24 * 60 * 60,
 ) -> AdmissionDecision:
     """Evaluate explicit pinning and readiness; never choose another backend.
