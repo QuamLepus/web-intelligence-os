@@ -190,8 +190,8 @@ floats, and strings fail verification. Redis head sequence fields must use
 canonical unsigned decimal strings without signs or leading zeroes. Redis
 head metadata rejects unknown fields and partial retention anchors; legacy
 heads are accepted only when both anchor fields are absent. Tenant identifiers
-must be nonempty strings at ledger boundaries; non-string values are never
-coerced into tenant keys. Redis head fields must decode as unique UTF-8 text;
+must be nonempty built-in strings at ledger boundaries; subclasses and other
+values are never coerced into tenant keys. Redis head fields must decode as unique UTF-8 text;
 malformed or ambiguous decoded fields fail closed. Signed checkpoint signatures
 must use canonical unpadded URL-safe Base64. Unsupported cryptographic key
 algorithms fail closed during verification. Append and checkpoint-verification
