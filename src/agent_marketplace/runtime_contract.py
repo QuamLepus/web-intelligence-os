@@ -379,12 +379,23 @@ def verify_backend_evidence(
     The reports and source artifacts must both be supplied and match their
     signed digests. Their semantic sufficiency still requires assessor review.
     """
-    if (evidence is None or source_evidence is None
+    if (type(readiness) is not BackendReadiness
+            or type(evidence) is not dict or type(source_evidence) is not dict
+            or type(readiness.conformance_evidence) is not dict
             or type(maximum_total_bytes) is not int or maximum_total_bytes < 0
             or type(maximum_age_seconds) is not int or maximum_age_seconds < 1):
         return False
+    if type(readiness.backend) is not RuntimeBackend:
+        return False
+    conformance = readiness.conformance_evidence
+    if any(type(gate) is not str or type(digest) is not str
+           for gate, digest in conformance.items()):
+        return False
+    if (any(type(gate) is not str for gate in evidence)
+            or any(type(gate) is not str for gate in source_evidence)):
+        return False
     required = BACKEND_REQUIRED_GATES[readiness.backend]
-    expected_gates = set(readiness.conformance_evidence)
+    expected_gates = set(conformance)
     if (set(evidence) != expected_gates
             or set(source_evidence) != expected_gates
             or not required.issubset(expected_gates)):
