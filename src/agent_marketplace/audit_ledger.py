@@ -456,11 +456,16 @@ class RuntimeAuditLedger:
 
     def _snapshot(self, tenant_id: str) -> tuple[list[AuditRecord], dict[str, str]]:
         records_key, head_key = self._keys(tenant_id)
-        with self.r.pipeline(transaction=True) as pipe:
-            pipe.llen(records_key)
-            pipe.lrange(records_key, -self.MAX_APPEND_SCAN_EVENTS, -1)
-            pipe.hgetall(head_key)
-            response = pipe.execute()
+        try:
+            with self.r.pipeline(transaction=True) as pipe:
+                pipe.llen(records_key)
+                pipe.lrange(records_key, -self.MAX_APPEND_SCAN_EVENTS, -1)
+                pipe.hgetall(head_key)
+                response = pipe.execute()
+        except AuditLedgerError:
+            raise
+        except (AttributeError, TypeError, ValueError, RecursionError, RedisError) as exc:
+            raise AuditLedgerError("invalid audit snapshot response") from exc
         if type(response) is not list or len(response) != 3:
             raise AuditLedgerError("invalid audit snapshot response")
         record_count, raw_records, raw_head = response

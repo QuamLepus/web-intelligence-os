@@ -449,6 +449,17 @@ def test_snapshot_rejects_malformed_transaction_responses(monkeypatch):
         ledger._snapshot("tenant-a")
 
 
+def test_snapshot_normalizes_redis_client_contract_failures(monkeypatch):
+    ledger = _ledger()
+
+    def invalid_pipeline(*args, **kwargs):
+        raise TypeError("invalid Redis client pipeline")
+
+    monkeypatch.setattr(ledger.r, "pipeline", invalid_pipeline)
+    with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
+        ledger.read("tenant-a")
+
+
 def test_read_fails_closed_when_redis_is_unavailable(monkeypatch):
     from redis.exceptions import ConnectionError as RedisConnectionError
 
