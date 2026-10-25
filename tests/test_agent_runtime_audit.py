@@ -73,6 +73,12 @@ def test_audit_decoder_rejects_record_collection_subclasses():
         _ledger()._decode_records(UnsafeRecords())
 
 
+def test_audit_decoder_rejects_oversized_record_collections():
+    ledger = _ledger(max_events=2)
+    with pytest.raises(AuditLedgerError, match="invalid audit record collection"):
+        ledger._decode_records([None] * (ledger.MAX_APPEND_SCAN_EVENTS + 1))
+
+
 def test_audit_head_decoder_rejects_mapping_subclasses():
     class UnsafeHead(dict):
         def items(self):
