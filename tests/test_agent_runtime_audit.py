@@ -261,6 +261,24 @@ def test_audit_decoder_rejects_noncanonical_hash_fields(field, value):
     assert not ledger.verify("tenant-a")
 
 
+def test_create_checkpoint_fails_closed_when_redis_is_unavailable(monkeypatch):
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    ledger = _ledger()
+    private_key = Ed25519PrivateKey.generate()
+
+    def unavailable(_tenant_id):
+        raise RedisConnectionError("redis unavailable")
+
+    monkeypatch.setattr(ledger, "_snapshot", unavailable)
+    with pytest.raises(
+        AuditLedgerError, match="cannot checkpoint an invalid audit ledger"
+    ):
+        ledger.create_checkpoint(
+            "tenant-a", signer_id="audit-operator", key_id="audit-key",
+            private_key=private_key)
+
+
 def test_read_fails_closed_when_redis_is_unavailable(monkeypatch):
     from redis.exceptions import ConnectionError as RedisConnectionError
 
