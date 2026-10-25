@@ -281,6 +281,14 @@ def test_backend_readiness_evidence_is_backend_specific_and_signed():
         assert verify_backend_evidence(
             readiness, evidence, source_evidence, now=NOW)
 
+        class EvidenceDict(dict):
+            pass
+
+        assert not verify_backend_evidence(
+            readiness, EvidenceDict(evidence), source_evidence, now=NOW)
+        assert not verify_backend_evidence(
+            readiness, evidence, EvidenceDict(source_evidence), now=NOW)
+
         class HostileBytes(bytes):
             def __len__(self):
                 raise RuntimeError("hostile length")
