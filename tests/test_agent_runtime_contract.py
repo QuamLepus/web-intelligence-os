@@ -699,6 +699,14 @@ def test_attestation_signature_verifies_claim_and_fails_closed_on_tampering():
     assert not verify_attestation_signature(
         signed, {"review-key-1": mutated_key}, now=NOW)
     assert not verify_attestation_signature(signed, {}, now=NOW)
+    oversized_trusted_keys = {
+        f"unrelated-{index}": test_keys["review-key-1"]
+        for index in range(257)
+    }
+    assert not verify_attestation_signature(
+        signed, oversized_trusted_keys, now=NOW)
+    assert not verify_attestation_signature(
+        signed, {"x" * 161: test_keys["review-key-1"]}, now=NOW)
     assert not verify_attestation_signature(
         signed.model_copy(update={"sha256": "b" * 64}), test_keys, now=NOW)
     malformed_attestation = signed.model_copy(update={"sha256": "not-a-digest"})

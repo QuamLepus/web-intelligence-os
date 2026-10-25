@@ -229,7 +229,9 @@ def verify_attestation_signature(
     """
     if (type(attestation) is not ArtifactAttestation
             or type(trusted_keys) is not dict
-            or any(type(key_id) is not str for key_id in trusted_keys)):
+            or len(trusted_keys) > 256
+            or any(type(key_id) is not str or not key_id or len(key_id) > 160
+                   for key_id in trusted_keys)):
         return False
     try:
         attestation = ArtifactAttestation.model_validate(
