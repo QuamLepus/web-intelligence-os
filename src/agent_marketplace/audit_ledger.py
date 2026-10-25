@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
 from redis.exceptions import WatchError
 
 from src.agent_marketplace.runtime_contract import (
@@ -139,6 +139,15 @@ class AuditCheckpoint(StrictContract):
         return self
 
 
+def _validated_checkpoint(checkpoint: object) -> AuditCheckpoint | None:
+    """Revalidate values because Pydantic model_copy(update=...) skips checks."""
+    try:
+        data = checkpoint.model_dump(mode="python")
+        return AuditCheckpoint.model_validate(data)
+    except (AttributeError, TypeError, ValueError, ValidationError):
+        return None
+
+
 def _checkpoint_payload(checkpoint: AuditCheckpoint) -> bytes:
     created_at = checkpoint.created_at
     if created_at.tzinfo is None or created_at.utcoffset() is None:
@@ -187,6 +196,11 @@ class RuntimeAuditLedger:
         return {cls._text(key): cls._text(item) for key, item in value.items()}
 
     def append(self, tenant_id: str, event: RuntimeAuditEvent) -> AuditRecord:
+        try:
+            event = RuntimeAuditEvent.model_validate(
+                event.model_dump(mode="python"))
+        except (AttributeError, TypeError, ValueError, ValidationError) as exc:
+            raise AuditLedgerError("invalid audit event contract") from exc
         tenant_id = str(tenant_id)
         if not tenant_id or event.tenant_id != tenant_id:
             raise AuditLedgerError("event tenant must match ledger tenant")
@@ -420,6 +434,9 @@ class RuntimeAuditLedger:
         Requiring trusted keys here prevents callers from accidentally treating
         a merely well-shaped, unsigned checkpoint as an external trust anchor.
         """
+        checkpoint = _validated_checkpoint(checkpoint)
+        if checkpoint is None:
+            return False
         tenant_id = str(tenant_id)
         tenant_hash = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
         if (checkpoint.tenant_sha256 != tenant_hash
@@ -453,6 +470,9 @@ class RuntimeAuditLedger:
         now: datetime | None = None,
     ) -> bool:
         """Verify checkpoint structure, signature, tenant, signer, and key status."""
+        checkpoint = _validated_checkpoint(checkpoint)
+        if checkpoint is None:
+            return False
         zero_hash = RuntimeAuditLedger.ZERO_HASH
         if (checkpoint.sequence == 0
                 and (checkpoint.first_sequence != 1

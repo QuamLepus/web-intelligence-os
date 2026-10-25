@@ -1,4 +1,5 @@
 """Tenant isolation, retention, and integrity tests for runtime audit metadata."""
+import base64
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -14,6 +15,7 @@ from src.agent_marketplace.audit_ledger import (
     AuditCheckpoint,
     AuditLedgerError,
     RuntimeAuditLedger,
+    _checkpoint_payload,
 )
 from src.agent_marketplace.runtime_contract import (
     RuntimeAuditEvent,
@@ -49,6 +51,16 @@ def test_audit_read_limit_rejects_boolean_coercion():
     ledger = _ledger()
     with pytest.raises(ValueError, match="limit must be an integer"):
         ledger.read("tenant-a", limit=True)
+
+
+def test_append_revalidates_runtime_events_copied_with_invalid_updates():
+    ledger = _ledger()
+    malformed = _event().model_copy(update={
+        "occurred_at": datetime.now(UTC).replace(tzinfo=None),
+    })
+    with pytest.raises(AuditLedgerError, match="invalid audit event contract"):
+        ledger.append("tenant-a", malformed)
+    assert ledger.verify("tenant-a")
 
 
 def test_audit_ledger_rejects_events_with_far_future_timestamps():
@@ -293,6 +305,18 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
         tenant_id="tenant-a", trusted_keys={"audit-key-1": trusted_key}, now=now)
     assert RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=now)
+    malformed_checkpoint = checkpoint.model_copy(update={
+        "sequence": True, "signature": "pending",
+    })
+    malformed_signature = base64.urlsafe_b64encode(
+        private_key.sign(_checkpoint_payload(malformed_checkpoint))
+    ).decode("ascii").rstrip("=")
+    malformed_checkpoint = malformed_checkpoint.model_copy(update={
+        "signature": malformed_signature,
+    })
+    assert not RuntimeAuditLedger.verify_checkpoint(
+        malformed_checkpoint, tenant_id="tenant-a",
+        trusted_keys=trusted_keys, now=now)
     assert not RuntimeAuditLedger.verify_checkpoint(
         checkpoint, tenant_id="tenant-a", trusted_keys=trusted_keys, now=True)
     assert not ledger.matches_checkpoint(
