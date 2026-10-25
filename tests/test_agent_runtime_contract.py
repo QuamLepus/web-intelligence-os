@@ -365,6 +365,20 @@ def test_readiness_conformance_evidence_rejects_non_builtin_containers_and_strin
         })
 
 
+@pytest.mark.parametrize("field", [
+    "environment_id", "policy_revision", "signer_id", "key_id", "assessor_id",
+    "assessor_key_id", "assessor_signature", "signature_algorithm", "signature",
+])
+def test_backend_readiness_rejects_text_subclasses(field):
+    class HostileText(str):
+        pass
+
+    data = _ready().model_dump(mode="python")
+    data[field] = HostileText(data[field])
+    with pytest.raises(ValidationError, match="readiness text fields must be built-in strings"):
+        BackendReadiness(**data)
+
+
 def test_admission_requires_all_pins_review_and_backend_gates():
     assert _decide(attestation=_attestation(), readiness=_ready()).admitted
     assert _decide(approved=False).reason == "artifact_not_approved"

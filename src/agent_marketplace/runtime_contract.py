@@ -343,6 +343,17 @@ class BackendReadiness(StrictContract):
     signature_algorithm: Literal["ed25519"] = "ed25519"
     signature: str = Field(min_length=1, max_length=256)
 
+    @field_validator(
+        "environment_id", "policy_revision", "signer_id", "key_id", "assessor_id",
+        "assessor_key_id", "assessor_signature", "signature_algorithm", "signature",
+        mode="before",
+    )
+    @classmethod
+    def _readiness_text_fields_are_builtin(cls, value: object) -> object:
+        if type(value) is not str:
+            raise ValueError("readiness text fields must be built-in strings")
+        return value
+
     @field_validator("conformance_evidence", mode="before")
     @classmethod
     def _conformance_evidence_is_builtin_mapping(cls, value: object) -> object:
