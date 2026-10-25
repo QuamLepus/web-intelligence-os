@@ -572,6 +572,18 @@ class RuntimeAuditEvent(StrictContract):
     policy_revision: str = Field(min_length=1, max_length=80)
     reason_code: str = Field(min_length=1, max_length=80)
 
+    @field_validator(
+        "event_id", "event_type", "run_id", "tenant_id", "agent_id", "version",
+        "artifact_sha256", "policy_revision", "reason_code", mode="before",
+    )
+    @classmethod
+    def _text_fields_are_builtin(cls, value: object) -> object:
+        if value is None:
+            return None
+        if type(value) is not str:
+            raise ValueError("audit event text fields must be built-in strings")
+        return value
+
     @field_validator("occurred_at", mode="before")
     @classmethod
     def _occurred_at_input_explicit(cls, value: object) -> object:

@@ -564,6 +564,15 @@ def test_audit_event_contains_bounded_metadata_not_input_or_output_payloads():
         reason_code="artifact_not_approved")
     assert "input" not in event.model_dump()
     assert "output" not in event.model_dump()
+
+    class HostileEventText(str):
+        def __eq__(self, other):
+            raise AssertionError("string subclass equality must not run")
+
+    with pytest.raises(ValidationError, match="built-in strings"):
+        RuntimeAuditEvent(**{
+            **event.model_dump(), "event_type": HostileEventText("admission_denied"),
+        })
     with pytest.raises(ValidationError):
         RuntimeAuditEvent(**{**event.model_dump(), "input": {"secret": "x"}})
     with pytest.raises(ValidationError, match="timezone"):
