@@ -194,10 +194,16 @@ def _validated_checkpoint(checkpoint: object) -> AuditCheckpoint | None:
 
 def _checkpoint_payload(checkpoint: AuditCheckpoint) -> bytes:
     created_at = checkpoint.created_at
-    if created_at.tzinfo is None or created_at.utcoffset() is None:
-        raise ValueError("checkpoint timestamp must include a timezone")
+    if (type(created_at) is not datetime or not _has_builtin_timezone(created_at)):
+        raise ValueError("checkpoint timestamp must use a standard-library timezone")
+    try:
+        if created_at.utcoffset() is None:
+            raise ValueError("checkpoint timestamp must include a timezone")
+        normalized_created_at = created_at.astimezone(UTC)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError("checkpoint timestamp cannot be normalized to UTC") from exc
     value = checkpoint.model_dump(mode="json", exclude={"signature"})
-    value["created_at"] = created_at.astimezone(UTC).isoformat()
+    value["created_at"] = normalized_created_at.isoformat()
     return json.dumps(value, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=True, allow_nan=False).encode("utf-8")
 
