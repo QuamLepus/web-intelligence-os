@@ -374,10 +374,10 @@ class RuntimeAuditLedger:
                     if (type(transaction_result) is not list
                             or len(transaction_result) != 3
                             or type(transaction_result[0]) is not int
-                            or transaction_result[0] < 1
+                            or transaction_result[0] != current_length + 1
                             or transaction_result[1] is not True
                             or type(transaction_result[2]) is not int
-                            or transaction_result[2] < 0):
+                            or not 0 <= transaction_result[2] <= 4):
                         raise AuditLedgerError("invalid audit append transaction response")
                     return record
                 except WatchError:
