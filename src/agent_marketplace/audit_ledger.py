@@ -212,8 +212,10 @@ class RuntimeAuditLedger:
         max_events_per_tenant: int = 5000,
         maximum_future_skew_seconds: int = 300,
     ) -> None:
-        if type(max_events_per_tenant) is not int or max_events_per_tenant < 1:
-            raise ValueError("max_events_per_tenant must be a positive integer")
+        if (type(max_events_per_tenant) is not int or max_events_per_tenant < 1
+                or max_events_per_tenant > self.MAX_APPEND_SCAN_EVENTS):
+            raise ValueError(
+                "max_events_per_tenant must be a positive integer no greater than 5000")
         if (type(maximum_future_skew_seconds) is not int
                 or maximum_future_skew_seconds < 0):
             raise ValueError("maximum_future_skew_seconds must be a nonnegative integer")
@@ -299,8 +301,7 @@ class RuntimeAuditLedger:
                     head = self._text_mapping(pipe.hgetall(head_key))
                     current_length = pipe.llen(records_key)
                     if (type(current_length) is not int or current_length < 0
-                            or current_length > max(
-                                self.max_events, self.MAX_APPEND_SCAN_EVENTS)):
+                            or current_length > self.MAX_APPEND_SCAN_EVENTS):
                         raise AuditLedgerError(
                             "cannot append to an invalid audit ledger")
                     # Event IDs are idempotency keys within the retained window.
