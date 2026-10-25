@@ -123,6 +123,16 @@ class ArtifactAttestation(StrictContract):
     signature: str = Field(min_length=1, max_length=256)
     created_at: datetime
 
+    @field_validator(
+        "agent_id", "version", "sha256", "provenance_id", "signer_id", "key_id",
+        "signature_algorithm", "signature", mode="before",
+    )
+    @classmethod
+    def _text_fields_are_builtin(cls, value: object) -> object:
+        if type(value) is not str:
+            raise ValueError("attestation text fields must be built-in strings")
+        return value
+
     @field_validator("created_at", mode="before")
     @classmethod
     def _created_at_input_explicit(cls, value: object) -> object:
