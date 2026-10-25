@@ -195,11 +195,24 @@ class RuntimeAuditLedger:
 
     @staticmethod
     def _text(value: Any) -> str:
-        return value.decode("utf-8") if isinstance(value, bytes) else str(value)
+        if isinstance(value, bytes):
+            return value.decode("utf-8")
+        if isinstance(value, str):
+            return value
+        raise TypeError("Redis audit values must be bytes or strings")
 
     @classmethod
     def _text_mapping(cls, value: dict[Any, Any]) -> dict[str, str]:
-        return {cls._text(key): cls._text(item) for key, item in value.items()}
+        try:
+            result: dict[str, str] = {}
+            for key, item in value.items():
+                text_key = cls._text(key)
+                if text_key in result:
+                    raise ValueError("duplicate decoded audit head field")
+                result[text_key] = cls._text(item)
+            return result
+        except (AttributeError, TypeError, UnicodeDecodeError, ValueError) as exc:
+            raise AuditLedgerError("invalid audit head encoding") from exc
 
     def append(self, tenant_id: str, event: RuntimeAuditEvent) -> AuditRecord:
         try:

@@ -215,6 +215,18 @@ def test_audit_record_sequence_rejects_coercible_non_integer_values():
         redis_client.lset(records_key, 0, json.dumps(original))
 
 
+def test_audit_head_rejects_non_utf8_field_names_fail_closed():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=False)
+    ledger = _ledger(redis_client)
+    ledger.append("tenant-a", _event())
+    _, head_key = ledger._keys("tenant-a")
+    redis_client.hset(head_key, b"\xff", b"value")
+
+    assert not ledger.verify("tenant-a")
+    with pytest.raises(AuditLedgerError, match="cannot read an invalid audit ledger"):
+        ledger.read("tenant-a")
+
+
 def test_audit_head_rejects_noncanonical_sequence_encoding():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client)
