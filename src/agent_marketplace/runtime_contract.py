@@ -69,6 +69,7 @@ class RuntimeBackend(StrEnum):
 
 MAX_TRUSTED_ATTESTATION_KEYS = 256
 MAX_READINESS_GENERATION = (1 << 63) - 1
+MAX_BACKEND_EVIDENCE_TOTAL_BYTES = 10 * 1024 * 1024
 
 
 BACKEND_REQUIRED_GATES: dict[RuntimeBackend, frozenset[str]] = {
@@ -497,7 +498,7 @@ def verify_backend_evidence(
     source_evidence: Mapping[str, bytes] | None,
     *,
     now: datetime | None = None,
-    maximum_total_bytes: int = 10 * 1024 * 1024,
+    maximum_total_bytes: int = MAX_BACKEND_EVIDENCE_TOTAL_BYTES,
     maximum_age_seconds: int = 24 * 60 * 60,
 ) -> bool:
     """Verify signed reports, source bytes, backend/pool bindings, and freshness.
@@ -508,7 +509,8 @@ def verify_backend_evidence(
     if (type(readiness) is not BackendReadiness
             or type(evidence) is not dict or type(source_evidence) is not dict
             or type(readiness.conformance_evidence) is not dict
-            or type(maximum_total_bytes) is not int or maximum_total_bytes < 0
+            or type(maximum_total_bytes) is not int or not 0 <= maximum_total_bytes
+            <= MAX_BACKEND_EVIDENCE_TOTAL_BYTES
             or type(maximum_age_seconds) is not int or maximum_age_seconds < 1):
         return False
     try:
