@@ -66,13 +66,16 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+MAX_AUDIT_SEQUENCE = (1 << 63) - 1
+
+
 def _parse_canonical_sequence(value: object, *, minimum: int = 0) -> int:
     """Parse a Redis sequence only in its canonical unsigned-decimal form."""
     if (not isinstance(value, str) or not value.isascii() or not value.isdecimal()
             or (len(value) > 1 and value.startswith("0"))):
         raise ValueError("audit head sequence is not canonical")
     sequence = int(value)
-    if sequence < minimum:
+    if sequence < minimum or sequence > MAX_AUDIT_SEQUENCE:
         raise ValueError("audit head sequence is out of range")
     return sequence
 
@@ -110,9 +113,9 @@ class AuditCheckpoint(StrictContract):
     """Signed checkpoint that can be exported to an independently protected store."""
 
     tenant_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    sequence: int = Field(ge=0, strict=True)
+    sequence: int = Field(ge=0, le=MAX_AUDIT_SEQUENCE, strict=True)
     event_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
-    first_sequence: int = Field(ge=1, strict=True)
+    first_sequence: int = Field(ge=1, le=MAX_AUDIT_SEQUENCE, strict=True)
     first_previous_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     created_at: datetime
     signer_id: str = Field(min_length=1, max_length=160)
@@ -355,7 +358,10 @@ class RuntimeAuditLedger:
                                 raise AuditLedgerError(
                                     "event ID already exists with different contents")
                             return existing
-                    sequence = int(head.get("sequence", 0)) + 1
+                    current_sequence = int(head.get("sequence", 0))
+                    if current_sequence >= MAX_AUDIT_SEQUENCE:
+                        raise AuditLedgerError("audit ledger sequence is exhausted")
+                    sequence = current_sequence + 1
                     previous_hash = head.get("event_hash", self.ZERO_HASH)
                     record = AuditRecord(
                         sequence=sequence,
@@ -440,8 +446,8 @@ class RuntimeAuditLedger:
                 if type(value) is not dict:
                     raise ValueError("audit record must be an object")
                 sequence = value["sequence"]
-                if type(sequence) is not int or sequence < 1:
-                    raise ValueError("audit record sequence must be a positive integer")
+                if (type(sequence) is not int or not 1 <= sequence <= MAX_AUDIT_SEQUENCE):
+                    raise ValueError("audit record sequence must be a positive bounded integer")
                 previous_hash = value["previous_hash"]
                 event_hash = value["event_hash"]
                 if (type(previous_hash) is not str
@@ -516,7 +522,8 @@ class RuntimeAuditLedger:
             return False
         validated_events = []
         for record in records:
-            if (type(record.sequence) is not int or record.sequence < 1
+            if (type(record.sequence) is not int
+                    or not 1 <= record.sequence <= MAX_AUDIT_SEQUENCE
                     or type(record.previous_hash) is not str
                     or len(record.previous_hash) != 64
                     or any(char not in "0123456789abcdef"

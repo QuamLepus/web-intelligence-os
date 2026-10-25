@@ -611,6 +611,29 @@ def test_retained_window_anchor_detects_missing_prefix_record():
     assert not ledger.verify("tenant-a")
 
 
+def test_audit_ledger_refuses_sequence_overflow():
+    redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+    ledger = _ledger(redis_client)
+    ledger.append("tenant-a", _event(suffix="max-sequence-base"))
+    records_key, head_key = ledger._keys("tenant-a")
+    record = json.loads(redis_client.lindex(records_key, 0))
+    record["sequence"] = (1 << 63) - 1
+    record["previous_hash"] = RuntimeAuditLedger.ZERO_HASH
+    record["event_hash"] = _record_hash(
+        record["sequence"], record["previous_hash"], record["event"])
+    redis_client.lset(records_key, 0, json.dumps(record, sort_keys=True,
+                                                  separators=(",", ":")))
+    redis_client.hset(head_key, mapping={
+        "sequence": record["sequence"], "event_hash": record["event_hash"],
+        "first_sequence": record["sequence"],
+        "first_previous_hash": RuntimeAuditLedger.ZERO_HASH,
+    })
+
+    assert ledger.verify("tenant-a")
+    with pytest.raises(AuditLedgerError, match="sequence is exhausted"):
+        ledger.append("tenant-a", _event(suffix="overflow"))
+
+
 def test_audit_record_sequence_rejects_coercible_non_integer_values():
     redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
     ledger = _ledger(redis_client)
@@ -618,7 +641,7 @@ def test_audit_record_sequence_rejects_coercible_non_integer_values():
     records_key, _ = ledger._keys("tenant-a")
     original = json.loads(redis_client.lindex(records_key, 0))
 
-    for invalid_sequence in (True, 1.0, "1"):
+    for invalid_sequence in (True, 1.0, "1", 1 << 63):
         altered = {**original, "sequence": invalid_sequence}
         redis_client.lset(records_key, 0, json.dumps(altered))
         assert not ledger.verify("tenant-a")
@@ -648,6 +671,8 @@ def test_audit_head_rejects_noncanonical_sequence_encoding():
         redis_client.hset(head_key, field, "+1")
         assert not ledger.verify("tenant-a")
         redis_client.hset(head_key, field, "01")
+        assert not ledger.verify("tenant-a")
+        redis_client.hset(head_key, field, str(1 << 63))
         assert not ledger.verify("tenant-a")
         redis_client.hset(head_key, field, original)
     assert ledger.verify("tenant-a")
@@ -817,6 +842,9 @@ def test_signed_checkpoint_is_tenant_bound_and_verifiable_outside_redis():
     trusted_keys = {"audit-key-1": trusted_key}
     assert checkpoint.sequence == 3
     checkpoint_data = checkpoint.model_dump()
+    for field in ("sequence", "first_sequence"):
+        with pytest.raises(ValidationError):
+            AuditCheckpoint(**{**checkpoint_data, field: 1 << 63})
 
     class HostileCheckpointText(str):
         def encode(self, *args, **kwargs):
