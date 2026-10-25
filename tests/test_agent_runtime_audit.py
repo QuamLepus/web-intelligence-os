@@ -94,6 +94,11 @@ def test_audit_head_decoder_rejects_oversized_mappings():
         RuntimeAuditLedger._text_mapping(oversized_head)
 
 
+def test_audit_head_decoder_rejects_overlong_fields():
+    with pytest.raises(AuditLedgerError, match="invalid audit head encoding"):
+        RuntimeAuditLedger._text_mapping({"sequence": "0" * 65})
+
+
 def test_audit_read_limit_rejects_boolean_coercion():
     ledger = _ledger()
     with pytest.raises(ValueError, match="limit must be an integer"):
