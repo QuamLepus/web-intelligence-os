@@ -683,6 +683,13 @@ class AdmissionDecision(StrictContract):
     artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     policy_revision: str
 
+    @field_validator("reason", "artifact_sha256", "policy_revision", mode="before")
+    @classmethod
+    def _decision_text_fields_are_builtin(cls, value: object) -> object:
+        if type(value) is not str:
+            raise ValueError("admission decision text fields must be built-in strings")
+        return value
+
     @model_validator(mode="after")
     def _admission_reason_matches_state(self) -> "AdmissionDecision":
         if self.admitted != (self.reason == "admitted"):

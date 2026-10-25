@@ -756,6 +756,21 @@ def test_admission_decision_requires_state_and_reason_consistency():
         AdmissionDecision(**{**decision, "admitted": False})
 
 
+@pytest.mark.parametrize("field", ["reason", "artifact_sha256", "policy_revision"])
+def test_admission_decision_rejects_string_subclasses(field):
+    class HostileText(str):
+        pass
+
+    decision = {
+        "admitted": True, "reason": "admitted",
+        "backend": RuntimeBackend.WASM_WASI, "artifact_sha256": DIGEST,
+        "policy_revision": "policy-v1",
+    }
+    decision[field] = HostileText(decision[field])
+    with pytest.raises(ValidationError, match="admission decision text fields must be built-in strings"):
+        AdmissionDecision(**decision)
+
+
 def test_admission_decision_rejects_boolean_coercion():
     decision = {
         "admitted": "false", "reason": "artifact_not_approved",
