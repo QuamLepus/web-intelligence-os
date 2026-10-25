@@ -515,7 +515,14 @@ class RuntimeAuditLedger:
     def _verify_snapshot(tenant_id: str, records: list[AuditRecord],
                          head: dict[str, str]) -> bool:
         if (type(tenant_id) is not str or not tenant_id
-                or type(records) is not list or type(head) is not dict):
+                or len(tenant_id) > RuntimeAuditLedger.MAX_TENANT_ID_LENGTH
+                or type(records) is not list
+                or len(records) > RuntimeAuditLedger.MAX_APPEND_SCAN_EVENTS
+                or type(head) is not dict):
+            return False
+        try:
+            tenant_id.encode("utf-8")
+        except UnicodeEncodeError:
             return False
         if any(type(key) is not str or type(value) is not str
                for key, value in head.items()):
