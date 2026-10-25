@@ -68,6 +68,7 @@ class RuntimeBackend(StrEnum):
 
 
 MAX_TRUSTED_ATTESTATION_KEYS = 256
+MAX_READINESS_GENERATION = (1 << 63) - 1
 
 
 BACKEND_REQUIRED_GATES: dict[RuntimeBackend, frozenset[str]] = {
@@ -376,7 +377,7 @@ class BackendReadiness(StrictContract):
 
     backend: RuntimeBackend
     environment_id: str = Field(min_length=1, max_length=160)
-    generation: int = Field(ge=1, strict=True)
+    generation: int = Field(ge=1, le=MAX_READINESS_GENERATION, strict=True)
     enabled: bool = Field(strict=True)
     conformance_evidence: dict[str, str]
     policy_revision: str = Field(min_length=1, max_length=80)

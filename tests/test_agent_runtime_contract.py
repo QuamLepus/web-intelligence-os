@@ -521,6 +521,13 @@ def test_admission_enforces_resource_bounds():
         _request(deadline_seconds=3601)
 
 
+def test_backend_readiness_generation_is_bounded_to_signed_64_bit_range():
+    with pytest.raises(ValidationError):
+        _ready(generation=1 << 63)
+    assert _decide(current_readiness_generation=1 << 63).reason \
+        == "backend_readiness_stale"
+
+
 def test_admission_decision_policy_revision_is_bounded():
     with pytest.raises(ValidationError):
         AdmissionDecision(
