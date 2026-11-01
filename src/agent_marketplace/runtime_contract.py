@@ -170,7 +170,7 @@ class ArtifactAttestation(StrictContract):
     agent_id: str = Field(min_length=1, max_length=128)
     version: str = Field(pattern=r"^\d+\.\d+\.\d+$", max_length=32)
     backend: RuntimeBackend
-    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$", max_length=64)
     provenance_id: str = Field(min_length=1, max_length=160)
     signer_id: str = Field(min_length=1, max_length=160)
     key_id: str = Field(min_length=1, max_length=160)
@@ -357,7 +357,7 @@ class BackendGateEvidence(StrictContract):
     result: Literal["passed"]
     tested_at: datetime
     test_run_id: str = Field(min_length=1, max_length=160)
-    report_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    report_sha256: str = Field(pattern=r"^[0-9a-f]{64}$", max_length=64)
 
     @field_validator("backend", mode="before")
     @classmethod
@@ -753,7 +753,7 @@ class AdmissionRequest(StrictContract):
     version: str = Field(pattern=r"^\d+\.\d+\.\d+$", max_length=32)
     backend: RuntimeBackend
     backend_environment_id: str = Field(min_length=1, max_length=160)
-    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$", max_length=64)
     input_bytes: int = Field(ge=0, le=1_048_576, strict=True)
     deadline_seconds: int = Field(ge=1, le=3600, strict=True)
 
@@ -788,7 +788,7 @@ class AdmissionDecision(StrictContract):
         "resource_limit_exceeded",
     ]
     backend: RuntimeBackend
-    artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$", max_length=64)
     policy_revision: str = Field(min_length=1, max_length=80)
 
     @field_validator("backend", mode="before")
@@ -822,7 +822,7 @@ class RuntimeAuditEvent(StrictContract):
     agent_id: str = Field(min_length=1, max_length=128)
     version: str = Field(pattern=r"^\d+\.\d+\.\d+$", max_length=32)
     backend: RuntimeBackend
-    artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$", max_length=64)
     policy_revision: str = Field(min_length=1, max_length=80)
     reason_code: str = Field(min_length=1, max_length=80)
 

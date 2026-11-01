@@ -936,6 +936,27 @@ def test_contracts_reject_unknown_fields_and_noncanonical_digest():
     with pytest.raises(ValidationError):
         _request(sha256="A" * 64)
     with pytest.raises(ValidationError):
+        _request(sha256="a" * 65)
+    with pytest.raises(ValidationError):
+        _attestation(sha256="a" * 65)
+    with pytest.raises(ValidationError):
+        AdmissionDecision(
+            admitted=True, reason="admitted", backend=RuntimeBackend.WASM_WASI,
+            artifact_sha256="a" * 65, policy_revision="policy-v1")
+    with pytest.raises(ValidationError):
+        BackendGateEvidence(
+            gate_id="runtime_version_pinned", backend=RuntimeBackend.WASM_WASI,
+            environment_id="pool-test-a", policy_revision="policy-v1",
+            result="passed", tested_at=NOW, test_run_id="test-1",
+            report_sha256="a" * 65)
+    with pytest.raises(ValidationError):
+        RuntimeAuditEvent(
+            event_id="evt-too-long-digest", occurred_at=NOW,
+            event_type="admission_denied", tenant_id="tenant-1",
+            agent_id="agent-1", version="1.0.0",
+            backend=RuntimeBackend.WASM_WASI, artifact_sha256="a" * 65,
+            policy_revision="policy-v1", reason_code="denied")
+    with pytest.raises(ValidationError):
         _attestation(backend="automatic")
 
 
